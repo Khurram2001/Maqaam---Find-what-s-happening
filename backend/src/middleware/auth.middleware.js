@@ -17,6 +17,7 @@ async function requireAuth(req, _res, next) {
       select: {
         id: true,
         email: true,
+        phoneNumber: true,
         name: true,
         role: true,
         isActive: true,

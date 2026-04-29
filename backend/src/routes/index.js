@@ -1,3 +1,4 @@
+// When adding or changing mount paths, update the route manifest: ./api-endpoints.js
 const express = require("express");
 const healthRouter = require("./health.routes");
 const authRouter = require("./auth.routes");

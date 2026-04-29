@@ -34,7 +34,8 @@ Error:
 ## Auth Routes
 
 - `POST /auth/register`
-  - body: `{ "name": "John", "email": "john@x.com", "password": "secret123" }`
+  - body: `{ "name": "John", "email": "john@x.com", "phoneNumber": "+923001234567", "password": "secret123" }`
+  - `phoneNumber` must be in E.164 format (regex: `^\+[1-9]\d{7,14}$`)
 - `POST /auth/login`
   - body: `{ "email": "john@x.com", "password": "secret123" }`
 - `POST /auth/refresh`
@@ -108,7 +109,8 @@ Error:
 ## Upload Route
 
 - `POST /uploads/event-image` (auth user)
-  - accepts file upload
+  - accepts image file upload only (`image/*`)
+  - max file size: 2MB
   - returns Cloudinary URL/publicId
 
 ## HTTP Status Guidelines
@@ -119,5 +121,5 @@ Error:
 - `401` Unauthenticated
 - `403` Forbidden
 - `404` Not found
-- `409` Conflict (email/category slug already exists)
+- `409` Conflict (email, phone number, or category slug already exists)
 - `500` Internal server error

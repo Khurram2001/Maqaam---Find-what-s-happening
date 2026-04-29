@@ -26,10 +26,12 @@ const {
 } = require("../config/env");
 
 const authRouter = express.Router();
+const phoneNumberRegex = /^\+[1-9]\d{7,14}$/;
 
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().email(),
+  phoneNumber: z.string().trim().regex(phoneNumberRegex, "Phone number must be in E.164 format"),
   password: z.string().min(8).max(128),
 });
 
@@ -89,6 +91,7 @@ function sanitizeUser(user) {
     id: user.id,
     name: user.name,
     email: user.email,
+    phoneNumber: user.phoneNumber,
     role: user.role,
     isActive: user.isActive,
     isEmailVerified: user.isEmailVerified,
@@ -188,6 +191,7 @@ authRouter.post("/register", authRateLimiter, async (req, res, next) => {
       data: {
         name: parsed.data.name,
         email: parsed.data.email.toLowerCase(),
+        phoneNumber: parsed.data.phoneNumber,
         passwordHash,
         isEmailVerified: false,
       },
@@ -214,6 +218,10 @@ authRouter.post("/register", authRateLimiter, async (req, res, next) => {
     });
   } catch (error) {
     if (error.code === "P2002") {
+      const targets = Array.isArray(error.meta?.target) ? error.meta.target : [];
+      if (targets.includes("phoneNumber")) {
+        return next(conflictError("Phone number already in use"));
+      }
       return next(conflictError("Email already in use"));
     }
     return next(error);

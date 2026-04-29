@@ -26,6 +26,7 @@ enum EventStatus {
 model User {
   id             String        @id @default(uuid())
   email          String        @unique
+  phoneNumber    String?       @unique
   passwordHash   String
   name           String
   role           Role          @default(USER)

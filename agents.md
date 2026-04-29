@@ -9,6 +9,30 @@ This file is updated every time development work is done.
 
 ## Entries
 
+### 2026-04-29 (UTC+5) - Smoke test synced with auth changes
+- Updated ackend/scripts/smoke-test.js for phoneNumber register payloads, login/session checks, resilient cookie capture, and fallback user seeding when email sending is blocked in test mode.
+- Re-ran smoke test successfully for core auth/admin/events flow; register currently returns EMAIL_SEND_FAILED due Resend test-recipient restriction.
+
+### 2026-04-29 (UTC+5) - Frontend forms contract added
+- Added `frontend-forms.md` in root with frontend form/query field requirements mapped to current backend APIs (auth, events, uploads, categories, admin).
+
+### 2026-04-29 (UTC+5) - Root security log added
+- Added `security.md` in project root to maintain ongoing security controls and changes during development.
+
+### 2026-04-29 (UTC+5) - API contract updated for frontend auth/uploads
+- Updated `docs/api-contract.md` to include required `phoneNumber` in `POST /auth/register`, E.164 format rule, upload image-only + 2MB limit, and `409` conflict note for duplicate phone number.
+
+### 2026-04-29 (UTC+5) - Upload size limit reduced
+- Updated `backend/src/routes/uploads.routes.js` multer `fileSize` limit from 5MB to 2MB for `POST /api/uploads/event-image`.
+
+### 2026-04-29 (UTC+5) - Auth register phone number support
+- Added `User.phoneNumber` (unique, nullable for backward compatibility) in `backend/prisma/schema.prisma` and migration `backend/prisma/migrations/20260429101700_add_user_phone_number/migration.sql`.
+- Updated `backend/src/routes/auth.routes.js` register validation/storage to require E.164 `phoneNumber`, include it in sanitized user payload, and return `409` for duplicate phone numbers.
+- Updated `backend/src/middleware/auth.middleware.js` to include `phoneNumber` in authenticated user selection.
+
+### 2026-04-29 (UTC+5) - API routes manifest
+- Added [`backend/src/routes/api-endpoints.js`](backend/src/routes/api-endpoints.js): exports `API_ENDPOINTS` (`method`, `path`, `group`) for all `/api` routes; cross-link comment in [`backend/src/routes/index.js`](backend/src/routes/index.js).
+
 ### 2026-04-28 (UTC+5) - Resend env placeholders added
 - Added Resend and email-flow configuration placeholders in `backend/.env`:
   - `RESEND_API_KEY`
