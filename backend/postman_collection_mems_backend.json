@@ -1,0 +1,164 @@
+{
+  "info": {
+    "_postman_id": "6ec1f6ac-f429-4fd6-8ca4-2e2f8f4e91a2",
+    "name": "MEMS Backend API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "userEmail", "value": "user.test@example.com" },
+    { "key": "userPassword", "value": "Pass12345!" },
+    { "key": "userPhone", "value": "+923001234567" },
+    { "key": "adminEmail", "value": "admin.test@example.com" },
+    { "key": "adminPassword", "value": "Pass12345!" },
+    { "key": "adminPhone", "value": "+923001234568" },
+    { "key": "categoryId", "value": "" },
+    { "key": "eventId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "Auth - Register User",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"User Test\",\n  \"email\": \"{{userEmail}}\",\n  \"phoneNumber\": \"{{userPhone}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      }
+    },
+    {
+      "name": "Auth - Register Admin",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Admin Test\",\n  \"email\": \"{{adminEmail}}\",\n  \"phoneNumber\": \"{{adminPhone}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      }
+    },
+    {
+      "name": "Auth - Login User",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Auth - Login Admin",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Category - Create (Admin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let json = {};",
+              "try { json = pm.response.json(); } catch (e) {}",
+              "const id = json?.data?.category?.id;",
+              "if (id) pm.collectionVariables.set('categoryId', id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Community\",\n  \"slug\": \"community\"\n}"
+        },
+        "url": "{{baseUrl}}/categories"
+      }
+    },
+    {
+      "name": "Events - Create (User)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let json = {};",
+              "try { json = pm.response.json(); } catch (e) {}",
+              "const id = json?.data?.event?.id;",
+              "if (id) pm.collectionVariables.set('eventId', id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Community Iftar\",\n  \"description\": \"Join us for a local gathering.\",\n  \"imageUrl\": \"https://example.com/demo.jpg\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"addressLine\": \"Street 10\",\n  \"formattedAddress\": \"Street 10, City, Country\",\n  \"providerPlaceId\": \"geo-place-123\",\n  \"latitude\": 24.8607,\n  \"longitude\": 67.0011,\n  \"startDate\": \"2026-05-01T18:00:00.000Z\",\n  \"endDate\": \"2026-05-01T20:00:00.000Z\"\n}"
+        },
+        "url": "{{baseUrl}}/events"
+      }
+    },
+    {
+      "name": "Admin - Pending Events (Paginated)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/admin/events/pending?page=1&limit=20"
+      }
+    },
+    {
+      "name": "Admin - Approve Event",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": "{{baseUrl}}/admin/events/{{eventId}}/approve"
+      }
+    },
+    {
+      "name": "Events - Public List (Paginated)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/events?page=1&limit=12"
+      }
+    },
+    {
+      "name": "Admin - Users (Paginated)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/admin/users?page=1&limit=20"
+      }
+    }
+  ]
+}

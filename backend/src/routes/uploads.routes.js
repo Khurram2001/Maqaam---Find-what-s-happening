@@ -15,6 +15,7 @@ cloudinary.config({
 });
 
 const upload = multer({
+  // Memory storage keeps upload flow simple before Cloudinary handoff.
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 2 * 1024 * 1024,
@@ -79,6 +80,7 @@ uploadsRouter.post(
       let eventImage = null;
       let event = null;
       if (parsed.data.eventId) {
+        // Optional attachment mode: enforce event existence and access first.
         event = await prisma.event.findFirst({
           where: { id: parsed.data.eventId, deletedAt: null },
           select: { id: true, userId: true, imageUrl: true },
@@ -107,6 +109,7 @@ uploadsRouter.post(
           where: { eventId: event.id },
         });
 
+        // sortOrder appends image to the end of the current event gallery.
         eventImage = await prisma.eventImage.create({
           data: {
             eventId: event.id,
@@ -125,6 +128,7 @@ uploadsRouter.post(
         });
 
         if (!event.imageUrl) {
+          // Set a primary image only when event does not already have one.
           await prisma.event.update({
             where: { id: event.id },
             data: { imageUrl: result.secure_url },

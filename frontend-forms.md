@@ -94,6 +94,12 @@ Query fields:
 - `page` (number, optional, default 1)
 - `limit` (number, optional, default 12, max 50)
 
+UI behavior recommendation:
+- On home page, fetch `page=1&limit=12` initially and render that chunk only.
+- Use a **Load more** button to request next pages and append results.
+- Hide/disable **Load more** when `page >= totalPages`.
+- Reset to first page when search/filter inputs change.
+
 ### Upload Image Form
 Endpoint: `POST /uploads/event-image` (`multipart/form-data`)
 

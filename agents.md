@@ -9,6 +9,26 @@ This file is updated every time development work is done.
 
 ## Entries
 
+### 2026-04-30 (UTC+5) - Backend inline comments refined
+- Added concise, high-signal inline comments in `backend/src/routes/auth.routes.js`, `backend/src/routes/events.routes.js`, and `backend/src/routes/uploads.routes.js` to clarify session rotation, optional auth visibility rules, moderation reset behavior, and image attachment/primary-image side effects.
+
+### 2026-04-30 (UTC+5) - Frontend styling stack decision documented
+- Updated `plan.md` to lock frontend implementation on Tailwind CSS + shadcn/ui with minimal custom CSS for faster delivery and consistent minimalist UI.
+- Updated `prompt.md` technical stack/design guidance to explicitly state Tailwind as base styling and shadcn/ui as reusable component primitives.
+
+### 2026-04-30 (UTC+5) - Frontend event listing strategy updated
+- Updated `plan.md` to require home event grid optimization via paginated fetch + `Load more` interaction and added it to Phase 2 exit criteria.
+- Updated `prompt.md` user/frontend specifications to explicitly prefer incremental event loading (`Load more`) instead of rendering all events at once.
+- Updated `frontend-forms.md` with concrete `GET /events` UI behavior guidance for initial page load, append-on-load-more, and reset-on-filter-change.
+
+### 2026-04-30 (UTC+5) - Postman testing artifacts added
+- Added `backend/postman_collection_mems_backend.json` with ready-to-import API requests/variables for health, auth, category, event, and admin pagination flows.
+- Added `backend/postman-testing-checklist.md` with a structured execution checklist using ✔ markers for Postman verification.
+
+### 2026-04-30 (UTC+5) - Admin list pagination added
+- Updated `backend/src/routes/admin.routes.js` to add `page`/`limit` query validation and paginated responses (`data.pagination`) for `GET /api/admin/events/pending` and `GET /api/admin/users`.
+- Updated `docs/api-contract.md` to document pagination query params and pagination metadata for both admin list endpoints.
+
 ### 2026-04-29 (UTC+5) - Smoke test synced with auth changes
 - Updated ackend/scripts/smoke-test.js for phoneNumber register payloads, login/session checks, resilient cookie capture, and fallback user seeding when email sending is blocked in test mode.
 - Re-ran smoke test successfully for core auth/admin/events flow; register currently returns EMAIL_SEND_FAILED due Resend test-recipient restriction.

@@ -94,6 +94,10 @@ Error:
 ## Moderation Routes (Admin)
 
 - `GET /admin/events/pending`
+  - query:
+    - `page` (default 1)
+    - `limit` (default 20, max 100)
+  - response includes `data.pagination` with `page`, `limit`, `total`, `totalPages`
 - `PATCH /admin/events/:id/approve`
   - body: `{}`
 - `PATCH /admin/events/:id/reject`
@@ -102,6 +106,10 @@ Error:
 ## User Management Routes (Admin)
 
 - `GET /admin/users`
+  - query:
+    - `page` (default 1)
+    - `limit` (default 20, max 100)
+  - response includes `data.pagination` with `page`, `limit`, `total`, `totalPages`
 - `PATCH /admin/users/:id/promote`
 - `PATCH /admin/users/:id/deactivate`
 - `DELETE /admin/users/:id` (if needed; use cautiously)

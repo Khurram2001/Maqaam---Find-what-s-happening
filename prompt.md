@@ -11,7 +11,7 @@ The project is divided into three main directories to maintain a clean separatio
 ---
 
 ## 2. Technical Stack
-- **Frontend:** Next.js 14+ (App Router), Tailwind CSS, Lucide React (Icons), Framer Motion (Animations).
+- **Frontend:** Next.js 14+ (App Router), Tailwind CSS (base styling), shadcn/ui (component primitives), Lucide React (Icons), Framer Motion (Animations).
 - **Backend:** Node.js, Express.js.
 - **ORM/Database:** Prisma with PostgreSQL (hosted on Supabase or Neon).
 - **Authentication:** JWT (JSON Web Tokens) stored in HTTP-only cookies.
@@ -132,6 +132,7 @@ The project is divided into three main directories to maintain a clean separatio
 - **Layout rhythm:** Consistent spacing scale, roomy sections, and readable content width.
 - **Navigation:** Minimal top navbar with concise links and one primary action button.
 - **Motion:** Subtle transitions only (hover, focus, micro-interactions); avoid heavy animation.
+- **Implementation approach:** Build UI with Tailwind utility classes and shadcn/ui components; avoid heavy custom CSS to keep delivery fast and the design system consistent.
 
 ### Key Features
 1. **Unified Auth Modal:**
@@ -144,6 +145,7 @@ The project is divided into three main directories to maintain a clean separatio
 3. **Event Listing:**
    - Responsive grid of cards.
    - Cards display: Image (top), Title (bold), Date/Location (muted text).
+   - Use paginated loading with a **Load more** button (append next chunk) instead of rendering all events at once.
 4. **User Dashboard (Private):**
    - Access only after login.
    - **View:** "My Events" list with a status badge (Yellow for Pending, Green for Approved).
@@ -184,7 +186,7 @@ The project is divided into three main directories to maintain a clean separatio
 - Setup Next.js with Tailwind.
 - Build the Navbar and Hero section.
 - Implement the Auth Modal logic.
-- Connect to GET `/events` to display the grid.
+- Connect to GET `/events` with paginated requests (`page`, `limit`) and a `Load more` interaction.
 - Add search + filter UI for Date, Category, and Location.
 
 ### Phase 3: Event Submission & Dashboard

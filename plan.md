@@ -66,11 +66,11 @@ This order avoids duplicate logic and prevents UI rework when API contracts chan
 - Migrations stable on a fresh DB.
 
 ## Phase 2: User Frontend MVP (4-6 days)
-- Build design foundation (minimalist system): typography, spacing, buttons, cards, inputs.
+- Build design foundation (minimalist system) using Tailwind CSS as the base styling system and shadcn/ui for reusable UI primitives; keep custom CSS minimal and token-focused.
 - Public pages/components:
   - Navbar
   - Hero + search/filter bar
-  - Event grid + event cards
+  - Event grid + event cards with incremental loading (`Load more` button), not full list render
 - Auth UX:
   - single modal (login/register tabs)
   - route guards for private areas
@@ -85,6 +85,7 @@ This order avoids duplicate logic and prevents UI rework when API contracts chan
 **Exit criteria**
 - User can register/login, create event, and see status in dashboard.
 - Search/filter works against backend APIs.
+- Home event listing uses paginated fetch (`page` + `limit`) with `Load more` UX and proper loading/end states.
 - UI follows minimalist design language consistently.
 
 ## Phase 3: Admin Frontend MVP (3-4 days)
@@ -93,6 +94,7 @@ This order avoids duplicate logic and prevents UI rework when API contracts chan
 - Approve/reject actions connected to backend moderation endpoints.
 - User management table with promote/deactivate/delete actions as defined.
 - Stats cards (total events, pending, users).
+- Reuse the same Tailwind + shadcn/ui component system to keep admin UI consistent with user app and speed delivery.
 
 **Exit criteria**
 - Admin can moderate events end-to-end.

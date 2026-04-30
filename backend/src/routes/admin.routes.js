@@ -20,6 +20,11 @@ const auditQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+const adminListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 function notFoundError(message) {
   const err = new Error(message || "Not found");
   err.status = 404;
@@ -35,33 +40,53 @@ function validationError(zodError) {
   return err;
 }
 
-adminRouter.get("/events/pending", async (_req, res, next) => {
+adminRouter.get("/events/pending", async (req, res, next) => {
   try {
-    const events = await prisma.event.findMany({
-      where: { status: "PENDING", deletedAt: null },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        imageUrl: true,
-        status: true,
-        createdAt: true,
-        startDate: true,
-        endDate: true,
-        formattedAddress: true,
-        user: {
-          select: { id: true, name: true, email: true },
+    const parsed = adminListQuerySchema.safeParse(req.query);
+    if (!parsed.success) throw validationError(parsed.error);
+
+    const page = parsed.data.page;
+    const limit = parsed.data.limit;
+    const where = { status: "PENDING", deletedAt: null };
+
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where,
+        orderBy: { createdAt: "asc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          imageUrl: true,
+          status: true,
+          createdAt: true,
+          startDate: true,
+          endDate: true,
+          formattedAddress: true,
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+          category: {
+            select: { id: true, name: true, slug: true },
+          },
         },
-        category: {
-          select: { id: true, name: true, slug: true },
-        },
-      },
-    });
+      }),
+      prisma.event.count({ where }),
+    ]);
 
     return res.status(200).json({
       success: true,
-      data: { events },
+      data: {
+        events,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
     return next(error);
@@ -159,23 +184,42 @@ adminRouter.patch("/events/:id/reject", async (req, res, next) => {
   }
 });
 
-adminRouter.get("/users", async (_req, res, next) => {
+adminRouter.get("/users", async (req, res, next) => {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-      },
-    });
+    const parsed = adminListQuerySchema.safeParse(req.query);
+    if (!parsed.success) throw validationError(parsed.error);
+
+    const page = parsed.data.page;
+    const limit = parsed.data.limit;
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+        },
+      }),
+      prisma.user.count(),
+    ]);
 
     return res.status(200).json({
       success: true,
-      data: { users },
+      data: {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
     return next(error);

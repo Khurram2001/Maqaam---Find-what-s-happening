@@ -72,6 +72,7 @@ function notFoundError(message) {
 
 async function resolveOptionalUser(req) {
   try {
+    // Optional auth: used on public routes to widen visibility for owner/admin.
     const token = readAccessTokenFromRequest(req);
     if (!token) return null;
     const payload = verifyAccessToken(token);
@@ -265,6 +266,7 @@ eventsRouter.patch("/:id", requireAuth, async (req, res, next) => {
       throw forbiddenError("Only owner or admin can update this event");
     }
 
+    // Validate with merged values so partial updates cannot bypass date ordering.
     const nextStartDate = parsed.data.startDate || existing.startDate;
     const nextEndDate = parsed.data.endDate || existing.endDate;
     if (nextEndDate <= nextStartDate) {
@@ -278,6 +280,7 @@ eventsRouter.patch("/:id", requireAuth, async (req, res, next) => {
       where: { id: existing.id },
       data: {
         ...parsed.data,
+        // Owner edits re-enter moderation; admin edits preserve moderation state.
         status: isAdmin ? undefined : "PENDING",
         rejectionReason: isAdmin ? undefined : null,
       },
@@ -417,6 +420,7 @@ eventsRouter.delete("/:id/images/:imageId", requireAuth, async (req, res, next) 
       select: { id: true, url: true },
     });
 
+    // Keep Event.imageUrl aligned with first remaining image after deletion.
     const nextPrimaryImageUrl = remainingImages[0]?.url || null;
     await prisma.event.update({
       where: { id: event.id },

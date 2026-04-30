@@ -108,6 +108,7 @@ async function issueSession(res, req, userId) {
   const accessToken = signAccessToken({ userId });
   const refreshToken = signRefreshToken({ userId });
 
+  // Persist refresh token as hash so sessions can be rotated/revoked safely.
   await prisma.authSession.create({
     data: {
       userId,
@@ -122,6 +123,7 @@ async function issueSession(res, req, userId) {
 }
 
 async function issueEmailVerification({ userId, email, name }) {
+  // Invalidate older active verification links before issuing a new one.
   await prisma.verificationToken.updateMany({
     where: {
       userId,
@@ -279,6 +281,7 @@ authRouter.post("/refresh", authRateLimiter, async (req, res, next) => {
     const payload = verifyRefreshToken(refreshToken);
     const refreshTokenHash = hashRawToken(refreshToken);
 
+    // Refresh only works for a live DB session matching this token hash.
     const existingSession = await prisma.authSession.findFirst({
       where: {
         userId: payload.userId,
@@ -305,6 +308,7 @@ authRouter.post("/refresh", authRateLimiter, async (req, res, next) => {
     const nextAccessToken = signAccessToken({ userId: user.id });
     const nextRefreshToken = signRefreshToken({ userId: user.id });
 
+    // Rotate refresh token on each refresh call to reduce replay risk.
     await prisma.authSession.update({
       where: { id: existingSession.id },
       data: {
@@ -379,6 +383,7 @@ authRouter.post("/verify-email/request", emailActionRateLimiter, async (req, res
       select: { id: true, email: true, name: true, isActive: true, isEmailVerified: true },
     });
 
+    // Keep response generic and only send when user is eligible.
     if (user && user.isActive && !user.isEmailVerified) {
       await issueEmailVerification({
         userId: user.id,
