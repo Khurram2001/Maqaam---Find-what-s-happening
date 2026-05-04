@@ -17,7 +17,7 @@ cloudinary.config({
 const querySchema = z.object({
   q: z.string().trim().optional(),
   status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
-  category: z.string().trim().optional(),
+  category: z.string().uuid().optional(),
   startDateFrom: z.coerce.date().optional(),
   startDateTo: z.coerce.date().optional(),
   page: z.coerce.number().int().min(1).default(1),

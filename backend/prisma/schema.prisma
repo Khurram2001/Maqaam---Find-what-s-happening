@@ -75,10 +75,10 @@ model Event {
   deletedAt        DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
-  user             User          @relation("EventOwner", fields: [userId], references: [id])
+  user             User          @relation("EventOwner", fields: [userId], references: [id], onDelete: Cascade)
   category         Category?     @relation(fields: [categoryId], references: [id])
-  approvedByUser   User?         @relation("EventApprovedBy", fields: [approvedBy], references: [id])
-  rejectedByUser   User?         @relation("EventRejectedBy", fields: [rejectedBy], references: [id])
+  approvedByUser   User?         @relation("EventApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
+  rejectedByUser   User?         @relation("EventRejectedBy", fields: [rejectedBy], references: [id], onDelete: SetNull)
   images           EventImage[]
 
   @@index([status, startDate])

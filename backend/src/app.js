@@ -6,6 +6,11 @@ const { corsOrigins } = require("./config/env");
 
 const app = express();
 
+const trustProxy = String(process.env.TRUST_PROXY || "").toLowerCase();
+if (trustProxy === "true" || trustProxy === "1") {
+  app.set("trust proxy", 1);
+}
+
 app.use(
   cors({
     origin: corsOrigins,
@@ -28,13 +33,21 @@ app.use((req, res) => {
 });
 
 app.use((err, _req, res, _next) => {
-  // Keep errors predictable for fast MVP debugging.
-  return res.status(err.status || 500).json({
+  const status = err.status || 500;
+  const isProd = process.env.NODE_ENV === "production";
+  const message =
+    isProd && status >= 500
+      ? "Unexpected server error"
+      : err.message || "Unexpected server error";
+  const details =
+    err.details && (status < 500 || !isProd) ? err.details : undefined;
+
+  return res.status(status).json({
     success: false,
     error: {
       code: err.code || "INTERNAL_SERVER_ERROR",
-      message: err.message || "Unexpected server error",
-      details: err.details || undefined,
+      message,
+      details,
     },
   });
 });

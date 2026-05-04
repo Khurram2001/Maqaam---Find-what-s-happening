@@ -40,6 +40,20 @@ function validationError(zodError) {
   return err;
 }
 
+function conflictError(message) {
+  const err = new Error(message);
+  err.status = 409;
+  err.code = "CONFLICT";
+  return err;
+}
+
+function badRequestError(message) {
+  const err = new Error(message);
+  err.status = 400;
+  err.code = "VALIDATION_ERROR";
+  return err;
+}
+
 adminRouter.get("/events/pending", async (req, res, next) => {
   try {
     const parsed = adminListQuerySchema.safeParse(req.query);
@@ -292,9 +306,22 @@ adminRouter.delete("/users/:id", async (req, res, next) => {
   try {
     const existing = await prisma.user.findUnique({
       where: { id: req.params.id },
-      select: { id: true },
+      select: { id: true, role: true },
     });
     if (!existing) throw notFoundError("User not found");
+
+    if (existing.id === req.user.id) {
+      throw badRequestError("You cannot delete your own account");
+    }
+
+    if (existing.role === "ADMIN") {
+      const otherAdminCount = await prisma.user.count({
+        where: { role: "ADMIN", id: { not: existing.id } },
+      });
+      if (otherAdminCount === 0) {
+        throw conflictError("Cannot delete the last remaining admin user");
+      }
+    }
 
     await prisma.user.delete({ where: { id: existing.id } });
 
