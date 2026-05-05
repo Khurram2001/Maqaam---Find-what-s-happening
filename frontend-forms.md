@@ -88,7 +88,7 @@ Endpoint: `GET /events`
 Query fields:
 - `q` (string, optional)
 - `status` (`PENDING | APPROVED | REJECTED`, optional)
-- `category` (string, optional; category id)
+- `category` (UUID string, optional; category id)
 - `startDateFrom` (date string, optional)
 - `startDateTo` (date string, optional)
 - `page` (number, optional, default 1)

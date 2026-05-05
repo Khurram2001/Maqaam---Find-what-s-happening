@@ -9,6 +9,90 @@ This file is updated every time development work is done.
 
 ## Entries
 
+### 2026-05-04 (UTC+5) - Frontend user hydration warning guard
+- Updated `frontend-user/app/layout.js` to add `suppressHydrationWarning` on the root `<body>` to prevent extension-injected attributes (e.g., Grammarly) from triggering client hydration mismatch warnings in local dev.
+- Re-ran `frontend-user` lint to confirm no regressions.
+
+### 2026-05-04 (UTC+5) - User Phase 4 checks: test baseline added
+- Added `vitest` setup in `frontend-user/package.json` (`npm test`).
+- Added `frontend-user/tests/user-lib.test.js` with baseline automated checks for user-side helpers and API adapters: `lib/config.js` (`getApiBaseUrl`), `lib/format-event.js` (`formatEventRange`), `lib/api-client.js` (`apiJson` request/error shape), and `lib/public-api.js` (`getPublicEvents` success/fallback).
+- Updated `frontend-user/AGENTS.md` with the new test coverage note.
+
+### 2026-05-04 (UTC+5) - Admin Step 7: automated validation checks
+- Added/expanded `frontend-admin/lib/admin-validation.js` with reusable filter validation (`validateAuditFilters`) and delete-confirm token checking.
+- Updated admin screens to consume the shared validation helpers (`frontend-admin/components/admin/admin-audit-logs-screen.jsx`, `frontend-admin/components/admin/admin-users-screen.jsx`) to reduce duplicated validation logic.
+- Added test setup for `frontend-admin` (`vitest`) with `npm test` script and `frontend-admin/tests/admin-validation.test.js` covering UUID checks, reject reason constraints, target type normalization, audit filter validation, and delete token confirmation behavior.
+- Updated `frontend-admin/AGENTS.md` with Step 7 notes.
+
+### 2026-05-04 (UTC+5) - Admin Step 6: Phase 4 UX hardening
+- Added `frontend-admin/lib/admin-validation.js` for shared client-side validation helpers (UUID checks, reject reason guard, and `targetType` normalization/validation).
+- Updated `frontend-admin/components/admin/admin-moderation-dashboard.jsx`, `frontend-admin/components/admin/admin-users-screen.jsx`, `frontend-admin/components/admin/admin-audit-logs-screen.jsx`, and `frontend-admin/components/admin/admin-event-review-screen.jsx` with clearer loading/empty states, retry actions after failed API calls, and success notices after admin actions.
+- Added stronger destructive-action safety in users screen (`DELETE` typed confirmation) and stricter reject/filter validation before sending API requests.
+- Updated `frontend-admin/AGENTS.md` with Step 6 notes.
+
+### 2026-05-04 (UTC+5) - Admin Step 5: protected layout + sign-in + stats
+- Added `frontend-admin/components/admin/admin-protected-layout.jsx` and wrapped protected pages (`frontend-admin/app/page.js`, `frontend-admin/app/users/page.js`, `frontend-admin/app/audit-logs/page.js`, `frontend-admin/app/events/[id]/page.js`) so admin gating (`GET /auth/me`) and nav/sign-out (`POST /auth/logout`) are shared in one place.
+- Added `frontend-admin/components/admin/admin-sign-in-screen.jsx` and `frontend-admin/app/sign-in/page.js` for dedicated admin login via `POST /auth/login`, with non-admin rejection flow.
+- Updated admin screens to remove duplicated per-page auth/nav boilerplate and updated `frontend-admin/components/admin/admin-moderation-dashboard.jsx` stats cards to include total events, pending events, and total users by aggregating existing API totals.
+- Updated `frontend-admin/AGENTS.md` with Step 5 notes.
+
+### 2026-05-04 (UTC+5) - Admin Step 4: audit logs screen
+- Added `frontend-admin/app/audit-logs/page.js` and `frontend-admin/components/admin/admin-audit-logs-screen.jsx` with admin guard, filter form (`actorUserId`, `targetType`, `targetId`), paginated `GET /admin/audit-logs`, and JSON `meta` rendering per log row.
+- Added audit navigation links in `frontend-admin/components/admin/admin-moderation-dashboard.jsx`, `frontend-admin/components/admin/admin-event-review-screen.jsx`, and `frontend-admin/components/admin/admin-users-screen.jsx`.
+- Updated `frontend-admin/AGENTS.md` with Step 4 notes.
+
+### 2026-05-04 (UTC+5) - Admin Step 3: users management screen
+- Added `frontend-admin/app/users/page.js` and `frontend-admin/components/admin/admin-users-screen.jsx` with admin guard, paginated `GET /admin/users`, and user actions wired to `PATCH /admin/users/:id/promote`, `PATCH /admin/users/:id/deactivate`, and `DELETE /admin/users/:id`.
+- Added navigation links between admin queue/review/users screens via updates in `frontend-admin/components/admin/admin-moderation-dashboard.jsx` and `frontend-admin/components/admin/admin-event-review-screen.jsx`.
+- Updated `frontend-admin/AGENTS.md` with Step 3 notes.
+
+### 2026-05-04 (UTC+5) - Admin Step 2: event review screen
+- Added `frontend-admin/app/events/[id]/page.js` and `frontend-admin/components/admin/admin-event-review-screen.jsx` for moderation review with admin guard, `GET /events/:id` event context, and approve/reject actions (`PATCH /admin/events/:id/approve`, `PATCH /admin/events/:id/reject`).
+- Updated `frontend-admin/components/admin/admin-moderation-dashboard.jsx` to include a per-row **Review** link into the new route.
+- Updated `frontend-admin/AGENTS.md` with Step 2 notes.
+
+### 2026-05-04 (UTC+5) - Admin Step 1: guard + pending queue
+- Added `frontend-admin/lib/config.js` and `frontend-admin/lib/api-client.js` for cookie-based API calls (`credentials: include`) with network-safe error shape.
+- Replaced `frontend-admin/app/page.js` placeholder with `frontend-admin/components/admin/admin-moderation-dashboard.jsx` and updated `frontend-admin/app/layout.js` metadata.
+- Implemented admin guard flow (`GET /auth/me`) and pending moderation screen (`GET /admin/events/pending` with pagination), including inline approve/reject actions wired to `PATCH /admin/events/:id/approve` and `PATCH /admin/events/:id/reject`.
+- Updated `frontend-admin/AGENTS.md` with the new admin Step 1 behavior.
+
+### 2026-05-04 (UTC+5) - User event edit/detail polish
+- `frontend-user/components/events/event-edit-screen.jsx`: unsaved-change detection vs loaded snapshot, `beforeunload` + confirm on leave links, inline “unsaved changes” hint, stricter delete flow for `APPROVED` events (second confirm + type `DELETE`), redirect to detail with `?updated=1` after save; address pick sets `providerPlaceId` from OSM id or LocationIQ place id.
+- `frontend-user/components/events/event-detail-screen.jsx`: dismissible “Changes saved” banner when `updated=1` query is present; strips query via `router.replace`.
+
+### 2026-05-04 (UTC+5) - User events edit screen added
+- Added `frontend-user/app/events/[id]/edit/page.js` + `frontend-user/components/events/event-edit-screen.jsx` with owner/admin guard (`GET /auth/me` + `GET /events/:id`), prefilled edit form, map/location search, optional image replacement upload (`POST /uploads/event-image`), update action (`PATCH /events/:id`), and delete action (`DELETE /events/:id`).
+- Updated `frontend-user/components/events/event-detail-screen.jsx` to show Edit action for owner/admin and keep detail map read-only.
+- Updated `frontend-user/components/dashboard/my-events-dashboard.jsx` cards to expose both View and Edit actions.
+
+### 2026-05-04 (UTC+5) - User dashboard: My events + create placeholder
+- Added `app/my-events/page.js` + `components/dashboard/my-events-dashboard.jsx`: client gate via `GET /auth/me`; guests see sign-in guidance; signed-in users load `GET /events/my/list` with status badges (pending / approved / rejected), rejection reason, links to `/events/:id`, and **Create event** CTA to `/events/new`.
+- Added `app/events/new/page.js` placeholder (next step: full create form) with nav back to My events / discover.
+- Extracted `lib/format-event.js` (`formatEventRange`) and reused from `event-discovery.jsx`.
+- Updated `site-header.jsx` nav (My events when logged in, Create event → `/events/new`), `user-menu.jsx` (My events item), `hero-section.jsx` (Host an event → `/events/new`).
+
+### 2026-05-04 (UTC+5) - User routes: verify email + reset password
+- Added `app/verify-email/page.js` + `verify-email-inner.jsx` (Suspense + `useSearchParams`) and `components/auth/verify-email-client.jsx` calling `POST /auth/verify-email/confirm` (manual **Verify my email** button to avoid double-submit in Strict Mode).
+- Added `app/reset-password/page.js` + `reset-password-inner.jsx` and `components/auth/reset-password-client.jsx` with Zod-matched password + confirm, calling `POST /auth/reset-password`.
+- Both screens use shadcn Card/Alert/Button/Input/Label and match minimalist Maqaam styling; `npm run lint` / `npm run build` pass.
+
+### 2026-05-04 (UTC+5) - User app auth (register, login, forgot, verify resend)
+- Added `zod`, shadcn `alert`, and `dropdown-menu` in `frontend-user/`.
+- New `lib/api-client.js`: `apiJson` helper with `credentials: "include"`.
+- New `components/auth/sign-in-dialog.jsx`: wired `POST /auth/register`, `POST /auth/login`, `POST /auth/forgot-password`, `POST /auth/verify-email/request`; client Zod validation; success state after register; unverified-login flow with resend; forgot-password sub-flow; `DialogTrigger` styled with `buttonVariants` (no nested `<button>`).
+- New `components/auth/user-menu.jsx`: `GET /auth/me`-driven header state, `POST /auth/logout`, account dropdown.
+- Updated `components/home/site-header.jsx`: session probe on load (`setTimeout` deferral for ESLint `set-state-in-effect`), `SignInDialog` / `UserMenu` swap.
+- `npm run lint` and `npm run build` pass for `frontend-user`.
+
+### 2026-05-04 (UTC+5) - User homepage (Maqaam) with shadcn + Tailwind
+- Initialized shadcn/ui (Base UI) in `frontend-user/` and added `button`, `card`, `input`, `badge`, `dialog`, `tabs`, `separator`, `label`.
+- Theming in `frontend-user/app/globals.css`: warm paper background, emerald primary, fixed `--font-sans` mapping to Geist.
+- Added `lib/config.js`, `lib/public-api.js` (`getPublicEvents` with try/catch for offline builds), `next.config.mjs` Cloudinary `images.remotePatterns`.
+- New home sections: `components/home/site-header.jsx` (nav + auth modal shell), `hero-section.jsx` + `hero-geometry.jsx`, `event-discovery.jsx` (search, filter dialog, cards, load more, `GET /events` + `GET /categories`), `site-footer.jsx`.
+- Updated `app/layout.js` (Geist + Amiri for Arabic tagline), `app/page.js`, placeholder `app/events/[id]/page.js`.
+- Root `.gitignore` already ignores agent tooling; homepage builds without API at build time.
+
 ### 2026-04-30 (UTC+5) - Backend inline comments refined
 - Added concise, high-signal inline comments in `backend/src/routes/auth.routes.js`, `backend/src/routes/events.routes.js`, and `backend/src/routes/uploads.routes.js` to clarify session rotation, optional auth visibility rules, moderation reset behavior, and image attachment/primary-image side effects.
 
