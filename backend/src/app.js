@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
 const routes = require("./routes");
-const { corsOrigins } = require("./config/env");
+const { corsOrigins, isProduction } = require("./config/env");
+const { apiRateLimiter } = require("./middleware/rate-limit.middleware");
 
 const app = express();
 
@@ -12,6 +14,13 @@ if (trustProxy === "true" || trustProxy === "1") {
 }
 
 app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+app.use(
   cors({
     origin: corsOrigins,
     credentials: true,
@@ -19,22 +28,23 @@ app.use(
 );
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
-
-app.use("/api", routes);
+app.use("/api", apiRateLimiter, routes);
 
 app.use((req, res) => {
   return res.status(404).json({
     success: false,
     error: {
       code: "NOT_FOUND",
-      message: `Route not found: ${req.method} ${req.originalUrl}`,
+      message: isProduction()
+        ? "Route not found"
+        : `Route not found: ${req.method} ${req.originalUrl}`,
     },
   });
 });
 
 app.use((err, _req, res, _next) => {
   const status = err.status || 500;
-  const isProd = process.env.NODE_ENV === "production";
+  const isProd = isProduction();
   const message =
     isProd && status >= 500
       ? "Unexpected server error"

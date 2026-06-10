@@ -1,35 +1,56 @@
 const express = require("express");
 const { z } = require("zod");
-const { v2: cloudinary } = require("cloudinary");
 const prisma = require("../lib/prisma");
+const { cloudinary } = require("../lib/cloudinary");
 const { requireAuth } = require("../middleware/auth.middleware");
 const { readAccessTokenFromRequest, verifyAccessToken } = require("../utils/auth");
 const { writeAuditLog } = require("../utils/audit");
+const {
+  validationError,
+  forbiddenError,
+  notFoundError,
+  badRequestError,
+} = require("../utils/http-errors");
 
 const eventsRouter = express.Router();
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
 const querySchema = z.object({
   q: z.string().trim().optional(),
   status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
   category: z.string().uuid().optional(),
   startDateFrom: z.coerce.date().optional(),
   startDateTo: z.coerce.date().optional(),
+  schedule: z.enum(["past", "today", "upcoming"]).optional(),
+  sort: z.enum(["default", "upcoming", "newest", "oldest"]).optional().default("default"),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(12),
 });
 
+function getDayBounds(reference = new Date()) {
+  const startOfToday = new Date(reference);
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(reference);
+  endOfToday.setHours(23, 59, 59, 999);
+  return { startOfToday, endOfToday };
+}
+
+const EVENT_DESCRIPTION_MAX_WORDS = 500;
+
+function countWords(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
 const eventBodySchema = z
   .object({
     title: z.string().trim().min(3).max(160),
-    description: z.string().trim().min(10),
+    description: z
+      .string()
+      .trim()
+      .min(10)
+      .refine((value) => countWords(value) <= EVENT_DESCRIPTION_MAX_WORDS, {
+        message: `Description must be at most ${EVENT_DESCRIPTION_MAX_WORDS} words`,
+      }),
     imageUrl: z.string().url().optional().or(z.literal("")).transform((v) => v || null),
-    categoryId: z.string().uuid().optional().or(z.literal("")).transform((v) => v || null),
+    categoryId: z.string().uuid(),
     addressLine: z.string().trim().optional().or(z.literal("")).transform((v) => v || null),
     formattedAddress: z.string().trim().optional().or(z.literal("")).transform((v) => v || null),
     providerPlaceId: z.string().trim().optional().or(z.literal("")).transform((v) => v || null),
@@ -48,30 +69,7 @@ const eventBodySchema = z
     }
   });
 
-function validationError(zodError) {
-  const err = new Error("Invalid request data");
-  err.status = 400;
-  err.code = "VALIDATION_ERROR";
-  err.details = zodError.flatten();
-  return err;
-}
-
-function forbiddenError(message) {
-  const err = new Error(message || "Forbidden");
-  err.status = 403;
-  err.code = "FORBIDDEN";
-  return err;
-}
-
-function notFoundError(message) {
-  const err = new Error(message || "Not found");
-  err.status = 404;
-  err.code = "NOT_FOUND";
-  return err;
-}
-
-async function resolveOptionalUser(req) {
-  try {
+async function resolveOptionalUser(req) {  try {
     // Optional auth: used on public routes to widen visibility for owner/admin.
     const token = readAccessTokenFromRequest(req);
     if (!token) return null;
@@ -86,7 +84,7 @@ async function resolveOptionalUser(req) {
   }
 }
 
-function eventSelect() {
+function eventSelect({ includeHost = false } = {}) {
   return {
     id: true,
     userId: true,
@@ -110,14 +108,20 @@ function eventSelect() {
     createdAt: true,
     updatedAt: true,
     category: { select: { id: true, name: true, slug: true } },
+    ...(includeHost
+      ? {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        }
+      : {}),
   };
 }
 
 eventsRouter.get("/", async (req, res, next) => {
   try {
     const parsed = querySchema.safeParse(req.query);
-    if (!parsed.success) throw validationError(parsed.error);
-
+    if (!parsed.success) throw validationError(parsed.error, "Invalid request data");
     const currentUser = await resolveOptionalUser(req);
     const isAdmin = currentUser?.role === "ADMIN";
     const where = { deletedAt: null };
@@ -126,6 +130,8 @@ eventsRouter.get("/", async (req, res, next) => {
       where.OR = [
         { title: { contains: parsed.data.q, mode: "insensitive" } },
         { description: { contains: parsed.data.q, mode: "insensitive" } },
+        { formattedAddress: { contains: parsed.data.q, mode: "insensitive" } },
+        { addressLine: { contains: parsed.data.q, mode: "insensitive" } },
       ];
     }
     if (parsed.data.category) where.categoryId = parsed.data.category;
@@ -140,16 +146,42 @@ eventsRouter.get("/", async (req, res, next) => {
       where.status = "APPROVED";
     }
 
+    if (isAdmin && parsed.data.schedule) {
+      const { startOfToday, endOfToday } = getDayBounds();
+      if (parsed.data.schedule === "past") {
+        where.endDate = { lt: startOfToday };
+      } else if (parsed.data.schedule === "today") {
+        where.AND = [{ startDate: { lte: endOfToday } }, { endDate: { gte: startOfToday } }];
+      } else if (parsed.data.schedule === "upcoming") {
+        where.startDate = { gt: endOfToday };
+      }
+    }
+
     const page = parsed.data.page;
     const limit = parsed.data.limit;
+
+    let orderBy =
+      parsed.data.sort === "upcoming"
+        ? { startDate: "asc" }
+        : parsed.data.sort === "oldest"
+          ? { createdAt: "asc" }
+          : parsed.data.sort === "newest"
+            ? { createdAt: "desc" }
+            : { createdAt: "desc" };
+
+    if (isAdmin && parsed.data.schedule === "past") {
+      orderBy = { startDate: "desc" };
+    } else if (isAdmin && (parsed.data.schedule === "today" || parsed.data.schedule === "upcoming")) {
+      orderBy = { startDate: "asc" };
+    }
 
     const [events, total] = await Promise.all([
       prisma.event.findMany({
         where,
-        orderBy: { startDate: "asc" },
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
-        select: eventSelect(),
+        select: eventSelect({ includeHost: isAdmin }),
       }),
       prisma.event.count({ where }),
     ]);
@@ -190,18 +222,24 @@ eventsRouter.get("/my/list", requireAuth, async (req, res, next) => {
 
 eventsRouter.get("/:id", async (req, res, next) => {
   try {
-    const event = await prisma.event.findFirst({
-      where: { id: req.params.id, deletedAt: null },
-      select: eventSelect(),
-    });
-    if (!event) throw notFoundError("Event not found");
-
     const currentUser = await resolveOptionalUser(req);
-    const isOwner = currentUser?.id === event.userId;
+    const eventRecord = await prisma.event.findFirst({
+      where: { id: req.params.id, deletedAt: null },
+      select: { userId: true, status: true },
+    });
+    if (!eventRecord) throw notFoundError("Event not found");
+
+    const isOwner = currentUser?.id === eventRecord.userId;
     const isAdmin = currentUser?.role === "ADMIN";
-    if (event.status !== "APPROVED" && !isOwner && !isAdmin) {
+    if (eventRecord.status !== "APPROVED" && !isOwner && !isAdmin) {
       throw forbiddenError("You are not allowed to view this event");
     }
+
+    const event = await prisma.event.findFirst({
+      where: { id: req.params.id, deletedAt: null },
+      select: eventSelect({ includeHost: isOwner || isAdmin }),
+    });
+    if (!event) throw notFoundError("Event not found");
 
     return res.status(200).json({
       success: true,
@@ -246,14 +284,10 @@ eventsRouter.post("/", requireAuth, async (req, res, next) => {
 eventsRouter.patch("/:id", requireAuth, async (req, res, next) => {
   try {
     const parsed = eventBodySchema.partial().safeParse(req.body);
-    if (!parsed.success) throw validationError(parsed.error);
+    if (!parsed.success) throw validationError(parsed.error, "Invalid request data");
     if (Object.keys(parsed.data).length === 0) {
-      const err = new Error("At least one field is required for update");
-      err.status = 400;
-      err.code = "VALIDATION_ERROR";
-      throw err;
+      throw badRequestError("At least one field is required for update");
     }
-
     const existing = await prisma.event.findFirst({
       where: { id: req.params.id, deletedAt: null },
       select: { id: true, userId: true, startDate: true, endDate: true },
@@ -270,20 +304,22 @@ eventsRouter.patch("/:id", requireAuth, async (req, res, next) => {
     const nextStartDate = parsed.data.startDate || existing.startDate;
     const nextEndDate = parsed.data.endDate || existing.endDate;
     if (nextEndDate <= nextStartDate) {
-      const err = new Error("endDate must be later than startDate");
-      err.status = 400;
-      err.code = "VALIDATION_ERROR";
-      throw err;
+      throw badRequestError("endDate must be later than startDate");
     }
-
     const event = await prisma.event.update({
       where: { id: existing.id },
-      data: {
-        ...parsed.data,
-        // Owner edits re-enter moderation; admin edits preserve moderation state.
-        status: isAdmin ? undefined : "PENDING",
-        rejectionReason: isAdmin ? undefined : null,
-      },
+      data: isAdmin
+        ? { ...parsed.data }
+        : {
+            ...parsed.data,
+            // Owner edits re-enter moderation; clear prior decision fields.
+            status: "PENDING",
+            rejectionReason: null,
+            rejectedBy: null,
+            rejectedAt: null,
+            approvedBy: null,
+            approvedAt: null,
+          },
       select: eventSelect(),
     });
 

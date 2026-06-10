@@ -1,16 +1,23 @@
 {
-  "name": "backend",
+  "name": "maqaam-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Maqaam API server (Express + Prisma)",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "smoke": "node scripts/smoke-test.js",
+    "db:fresh-start": "node scripts/fresh-start-db.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio"
   },
-  "keywords": [],
+  "keywords": [
+    "maqaam",
+    "api",
+    "express"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -24,6 +31,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "pg": "^8.20.0",

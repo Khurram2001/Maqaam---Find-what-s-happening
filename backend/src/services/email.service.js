@@ -1,4 +1,5 @@
 const { Resend } = require("resend");
+const { escapeHtml } = require("../utils/security");
 
 function getResendClient() {
   if (!process.env.RESEND_API_KEY) {
@@ -12,11 +13,12 @@ function getResendClient() {
 
 async function sendVerificationEmail({ to, name, verifyUrl, idempotencyKey }) {
   const resend = getResendClient();
+  const greeting = name ? `Hello ${escapeHtml(name)},` : "Hello,";
   const { data, error } = await resend.emails.send({
     from: process.env.EMAIL_FROM,
     to: [to],
-    subject: "Verify your email address",
-    html: `<p>Hello ${name || "there"},</p><p>Please verify your email by clicking the link below:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
+    subject: "Verify your Maqaam email",
+    html: `<p>${greeting}</p><p>Welcome to Maqaam. Confirm your email address to activate your account and start organizing community gatherings.</p><p><a href="${verifyUrl}" style="display:inline-block;padding:12px 20px;background:#0B4D53;color:#FAF6F0;text-decoration:none;border-radius:8px;font-weight:600;">Verify email</a></p><p>If you did not create an account, you can ignore this email.</p><p style="word-break:break-all;color:#666;font-size:12px;">${verifyUrl}</p>`,
     idempotencyKey,
   });
 
@@ -32,11 +34,12 @@ async function sendVerificationEmail({ to, name, verifyUrl, idempotencyKey }) {
 
 async function sendPasswordResetEmail({ to, name, resetUrl, idempotencyKey }) {
   const resend = getResendClient();
+  const greeting = name ? `Hello ${escapeHtml(name)},` : "Hello,";
   const { data, error } = await resend.emails.send({
     from: process.env.EMAIL_FROM,
     to: [to],
-    subject: "Reset your password",
-    html: `<p>Hello ${name || "there"},</p><p>You can reset your password using the link below:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+    subject: "Reset your Maqaam password",
+    html: `<p>${greeting}</p><p>We received a request to reset your password. Click the button below to choose a new one. This link expires in 30 minutes.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#0B4D53;color:#FAF6F0;text-decoration:none;border-radius:8px;font-weight:600;">Reset password</a></p><p>If you did not request this, you can ignore this email.</p><p style="word-break:break-all;color:#666;font-size:12px;">${resetUrl}</p>`,
     idempotencyKey,
   });
 

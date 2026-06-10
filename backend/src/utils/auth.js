@@ -1,4 +1,3 @@
-const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const {
   JWT_ACCESS_SECRET,
@@ -16,28 +15,26 @@ const {
 const ACCESS_COOKIE_NAME = "mems_access_token";
 const REFRESH_COOKIE_NAME = "mems_refresh_token";
 
-function hashToken(token) {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
-
 function signAccessToken(payload) {
   return jwt.sign(payload, JWT_ACCESS_SECRET, {
     expiresIn: ACCESS_TOKEN_EXPIRES_IN || accessTokenExpiresIn,
+    algorithm: "HS256",
   });
 }
 
 function signRefreshToken(payload) {
   return jwt.sign(payload, JWT_REFRESH_SECRET, {
     expiresIn: REFRESH_TOKEN_EXPIRES_IN || refreshTokenExpiresIn,
+    algorithm: "HS256",
   });
 }
 
 function verifyAccessToken(token) {
-  return jwt.verify(token, JWT_ACCESS_SECRET);
+  return jwt.verify(token, JWT_ACCESS_SECRET, { algorithms: ["HS256"] });
 }
 
 function verifyRefreshToken(token) {
-  return jwt.verify(token, JWT_REFRESH_SECRET);
+  return jwt.verify(token, JWT_REFRESH_SECRET, { algorithms: ["HS256"] });
 }
 
 function refreshExpiresAt() {
@@ -85,7 +82,6 @@ function readRefreshTokenFromRequest(req) {
 }
 
 module.exports = {
-  hashToken,
   signAccessToken,
   signRefreshToken,
   verifyAccessToken,

@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "6ec1f6ac-f429-4fd6-8ca4-2e2f8f4e91a2",
-    "name": "MEMS Backend API",
+    "name": "Maqaam Backend API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

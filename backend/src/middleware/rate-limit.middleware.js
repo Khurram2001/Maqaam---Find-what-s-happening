@@ -36,8 +36,26 @@ const emailActionRateLimiter = rateLimit({
   handler: rateLimitHandler("Too many email verification/reset requests. Please try again later."),
 });
 
+const apiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: rateLimitHandler("Too many requests. Please try again later."),
+});
+
+const writeRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: rateLimitHandler("Too many write requests. Please try again later."),
+});
+
 module.exports = {
   authRateLimiter,
   uploadRateLimiter,
   emailActionRateLimiter,
+  apiRateLimiter,
+  writeRateLimiter,
 };

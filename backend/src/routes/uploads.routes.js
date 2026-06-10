@@ -1,18 +1,13 @@
 const express = require("express");
 const multer = require("multer");
 const { z } = require("zod");
-const { v2: cloudinary } = require("cloudinary");
 const prisma = require("../lib/prisma");
+const { cloudinary, EVENT_IMAGE_FOLDER } = require("../lib/cloudinary");
 const { requireAuth } = require("../middleware/auth.middleware");
 const { uploadRateLimiter } = require("../middleware/rate-limit.middleware");
+const { isAllowedImageBuffer } = require("../utils/security");
 
 const uploadsRouter = express.Router();
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 const upload = multer({
   // Memory storage keeps upload flow simple before Cloudinary handoff.
@@ -37,6 +32,7 @@ function uploadBufferToCloudinary(fileBuffer, folder) {
       {
         folder,
         resource_type: "image",
+        allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
       },
       (error, result) => {
         if (error) return reject(error);
@@ -61,6 +57,13 @@ uploadsRouter.post(
     try {
       if (!req.file) {
         const err = new Error("Image file is required");
+        err.status = 400;
+        err.code = "VALIDATION_ERROR";
+        throw err;
+      }
+
+      if (!isAllowedImageBuffer(req.file.buffer)) {
+        const err = new Error("Only JPEG, PNG, WebP, or GIF images are allowed");
         err.status = 400;
         err.code = "VALIDATION_ERROR";
         throw err;
@@ -102,7 +105,7 @@ uploadsRouter.post(
         }
       }
 
-      const result = await uploadBufferToCloudinary(req.file.buffer, "mems/events");
+      const result = await uploadBufferToCloudinary(req.file.buffer, EVENT_IMAGE_FOLDER);
 
       if (parsed.data.eventId) {
         const existingCount = await prisma.eventImage.count({

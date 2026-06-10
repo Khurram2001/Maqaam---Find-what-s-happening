@@ -3,6 +3,12 @@ const { z } = require("zod");
 const prisma = require("../lib/prisma");
 const { requireAuth, requireAdmin } = require("../middleware/auth.middleware");
 const { writeAuditLog } = require("../utils/audit");
+const {
+  validationError,
+  notFoundError,
+  conflictError,
+  badRequestError,
+} = require("../utils/http-errors");
 
 const adminRouter = express.Router();
 
@@ -24,35 +30,6 @@ const adminListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
-
-function notFoundError(message) {
-  const err = new Error(message || "Not found");
-  err.status = 404;
-  err.code = "NOT_FOUND";
-  return err;
-}
-
-function validationError(zodError) {
-  const err = new Error("Invalid request body");
-  err.status = 400;
-  err.code = "VALIDATION_ERROR";
-  err.details = zodError.flatten();
-  return err;
-}
-
-function conflictError(message) {
-  const err = new Error(message);
-  err.status = 409;
-  err.code = "CONFLICT";
-  return err;
-}
-
-function badRequestError(message) {
-  const err = new Error(message);
-  err.status = 400;
-  err.code = "VALIDATION_ERROR";
-  return err;
-}
 
 adminRouter.get("/events/pending", async (req, res, next) => {
   try {
@@ -111,9 +88,12 @@ adminRouter.patch("/events/:id/approve", async (req, res, next) => {
   try {
     const event = await prisma.event.findFirst({
       where: { id: req.params.id, deletedAt: null },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (!event) throw notFoundError("Event not found");
+    if (event.status !== "PENDING") {
+      throw conflictError("Only pending gatherings can be approved");
+    }
 
     const updated = await prisma.event.update({
       where: { id: event.id },
@@ -158,9 +138,12 @@ adminRouter.patch("/events/:id/reject", async (req, res, next) => {
 
     const event = await prisma.event.findFirst({
       where: { id: req.params.id, deletedAt: null },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (!event) throw notFoundError("Event not found");
+    if (event.status !== "PENDING") {
+      throw conflictError("Only pending gatherings can be rejected");
+    }
 
     const updated = await prisma.event.update({
       where: { id: event.id },

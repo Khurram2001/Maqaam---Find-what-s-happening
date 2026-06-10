@@ -23,7 +23,14 @@ const {
   frontendUserBaseUrl,
   emailVerifyTokenTtlMinutes,
   passwordResetTokenTtlMinutes,
+  nodeEnv,
 } = require("../config/env");
+const {
+  validationError,
+  conflictError,
+  unauthenticatedError,
+  forbiddenError,
+} = require("../utils/http-errors");
 
 const authRouter = express.Router();
 const phoneNumberRegex = /^\+[1-9]\d{7,14}$/;
@@ -56,35 +63,6 @@ const resetPasswordSchema = z.object({
   token: z.string().trim().min(10),
   newPassword: z.string().min(8).max(128),
 });
-
-function validationError(zodError) {
-  const err = new Error("Invalid request body");
-  err.status = 400;
-  err.code = "VALIDATION_ERROR";
-  err.details = zodError.flatten();
-  return err;
-}
-
-function conflictError(message) {
-  const err = new Error(message);
-  err.status = 409;
-  err.code = "CONFLICT";
-  return err;
-}
-
-function unauthenticatedError(message) {
-  const err = new Error(message || "Unauthenticated");
-  err.status = 401;
-  err.code = "UNAUTHENTICATED";
-  return err;
-}
-
-function forbiddenError(message) {
-  const err = new Error(message || "Forbidden");
-  err.status = 403;
-  err.code = "FORBIDDEN";
-  return err;
-}
 
 function sanitizeUser(user) {
   return {
@@ -143,7 +121,12 @@ async function issueEmailVerification({ userId, email, name }) {
     select: { id: true },
   });
 
-  const verifyUrl = `${frontendUserBaseUrl}/verify-email?token=${rawToken}`;
+  const verifyUrl = `${frontendUserBaseUrl}/verify-email?token=${encodeURIComponent(rawToken)}`;
+
+  if (nodeEnv !== "production") {
+    console.info(`[auth] email verification link for ${email}: ${verifyUrl}`);
+  }
+
   await sendVerificationEmail({
     to: email,
     name,
@@ -172,13 +155,24 @@ async function issuePasswordReset({ userId, email, name }) {
     select: { id: true },
   });
 
-  const resetUrl = `${frontendUserBaseUrl}/reset-password?token=${rawToken}`;
+  const resetUrl = `${frontendUserBaseUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+  if (nodeEnv !== "production") {
+    console.info(`[auth] password reset link for ${email}: ${resetUrl}`);
+  }
+
   await sendPasswordResetEmail({
     to: email,
     name,
     resetUrl,
     idempotencyKey: `reset-password/${userId}/${tokenRow.id}`,
   });
+}
+
+function isEmailDeliveryError(error) {
+  return (
+    error?.code === "EMAIL_SEND_FAILED" || error?.code === "EMAIL_PROVIDER_NOT_CONFIGURED"
+  );
 }
 
 authRouter.post("/register", authRateLimiter, async (req, res, next) => {
@@ -203,6 +197,11 @@ authRouter.post("/register", authRateLimiter, async (req, res, next) => {
       userId: createdUser.id,
       email: createdUser.email,
       name: createdUser.name,
+    }).catch((error) => {
+      if (!isEmailDeliveryError(error)) {
+        throw error;
+      }
+      console.error("[auth] register verification email delivery failed:", error.message);
     });
     await writeAuditLog({
       actorUserId: createdUser.id,
@@ -327,9 +326,6 @@ authRouter.post("/refresh", authRateLimiter, async (req, res, next) => {
       data: { user: sanitizeUser(user) },
     });
   } catch (error) {
-    if (error.code && error.status) {
-      return next(error);
-    }
     return next(error);
   }
 });
@@ -385,17 +381,24 @@ authRouter.post("/verify-email/request", emailActionRateLimiter, async (req, res
 
     // Keep response generic and only send when user is eligible.
     if (user && user.isActive && !user.isEmailVerified) {
-      await issueEmailVerification({
-        userId: user.id,
-        email: user.email,
-        name: user.name,
-      });
-      await writeAuditLog({
-        actorUserId: user.id,
-        action: "AUTH_VERIFY_EMAIL_REQUEST",
-        targetType: "USER",
-        targetId: user.id,
-      });
+      try {
+        await issueEmailVerification({
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+        });
+        await writeAuditLog({
+          actorUserId: user.id,
+          action: "AUTH_VERIFY_EMAIL_REQUEST",
+          targetType: "USER",
+          targetId: user.id,
+        });
+      } catch (error) {
+        if (!isEmailDeliveryError(error)) {
+          throw error;
+        }
+        console.error("[auth] verify-email/request delivery failed:", error.message);
+      }
     }
 
     return res.status(200).json({
@@ -428,17 +431,24 @@ authRouter.post("/verify-email/confirm", emailActionRateLimiter, async (req, res
       throw forbiddenError("Invalid or expired verification token");
     }
 
-    const user = await prisma.user.update({
-      where: { id: token.userId },
-      data: {
-        isEmailVerified: true,
-        emailVerifiedAt: new Date(),
-      },
-    });
+    const user = await prisma.$transaction(async (tx) => {
+      const verifiedUser = await tx.user.update({
+        where: { id: token.userId },
+        data: {
+          isEmailVerified: true,
+          emailVerifiedAt: new Date(),
+        },
+      });
 
-    await prisma.verificationToken.update({
-      where: { id: token.id },
-      data: { usedAt: new Date() },
+      await tx.verificationToken.updateMany({
+        where: {
+          userId: token.userId,
+          usedAt: null,
+        },
+        data: { usedAt: new Date() },
+      });
+
+      return verifiedUser;
     });
 
     await writeAuditLog({
@@ -470,17 +480,25 @@ authRouter.post("/forgot-password", emailActionRateLimiter, async (req, res, nex
     });
 
     if (user && user.isActive) {
-      await issuePasswordReset({
-        userId: user.id,
-        email: user.email,
-        name: user.name,
-      });
-      await writeAuditLog({
-        actorUserId: user.id,
-        action: "AUTH_FORGOT_PASSWORD_REQUEST",
-        targetType: "USER",
-        targetId: user.id,
-      });
+      try {
+        await issuePasswordReset({
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+        });
+        await writeAuditLog({
+          actorUserId: user.id,
+          action: "AUTH_FORGOT_PASSWORD_REQUEST",
+          targetType: "USER",
+          targetId: user.id,
+        });
+      } catch (error) {
+        // Keep response generic; log delivery issues for ops/dev follow-up.
+        if (!isEmailDeliveryError(error)) {
+          throw error;
+        }
+        console.error("[auth] forgot-password email delivery failed:", error.message);
+      }
     }
 
     return res.status(200).json({
@@ -514,22 +532,27 @@ authRouter.post("/reset-password", emailActionRateLimiter, async (req, res, next
     }
 
     const nextHash = await bcrypt.hash(parsed.data.newPassword, 12);
-    await prisma.user.update({
-      where: { id: resetToken.userId },
-      data: { passwordHash: nextHash },
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash: nextHash },
+      });
 
-    await prisma.passwordResetToken.update({
-      where: { id: resetToken.id },
-      data: { usedAt: new Date() },
-    });
+      await tx.passwordResetToken.updateMany({
+        where: {
+          userId: resetToken.userId,
+          usedAt: null,
+        },
+        data: { usedAt: new Date() },
+      });
 
-    await prisma.authSession.updateMany({
-      where: {
-        userId: resetToken.userId,
-        revokedAt: null,
-      },
-      data: { revokedAt: new Date() },
+      await tx.authSession.updateMany({
+        where: {
+          userId: resetToken.userId,
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date() },
+      });
     });
 
     await writeAuditLog({

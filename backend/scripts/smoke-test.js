@@ -2,6 +2,7 @@ const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const bcrypt = require("bcryptjs");
 const prisma = require("../src/lib/prisma");
+const { generateTokenPair } = require("../src/utils/token");
 
 const base = "http://localhost:5000/api";
 const now = Date.now();
@@ -67,6 +68,38 @@ async function main() {
   out.userRegister = await req("POST", "/auth/register", user, "user");
   out.adminRegister = await req("POST", "/auth/register", admin, "admin");
 
+  if (out.userRegister.status === 201) {
+    out.loginBeforeVerify = await req("POST", "/auth/login", {
+      email: user.email,
+      password: user.password,
+    });
+    out.verifyEmailRequest = await req("POST", "/auth/verify-email/request", {
+      email: user.email,
+    });
+
+    const verifyUser = await prisma.user.findUnique({
+      where: { email: user.email },
+      select: { id: true },
+    });
+    const { rawToken: verifyRawToken, tokenHash: verifyTokenHash } = generateTokenPair();
+    await prisma.verificationToken.create({
+      data: {
+        userId: verifyUser.id,
+        tokenHash: verifyTokenHash,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    out.verifyEmailConfirm = await req("POST", "/auth/verify-email/confirm", {
+      token: verifyRawToken,
+    });
+    out.loginAfterVerify = await req(
+      "POST",
+      "/auth/login",
+      { email: user.email, password: user.password },
+      "user"
+    );
+  }
+
   // Registration can fail in local/dev when email provider credentials are missing.
   // Fallback user seeding keeps smoke coverage for the remaining protected APIs.
   if (out.userRegister.status !== 201) {
@@ -123,6 +156,30 @@ async function main() {
   out.userLogin = await req("POST", "/auth/login", { email: user.email, password: user.password }, "user");
   out.adminLogin = await req("POST", "/auth/login", { email: admin.email, password: admin.password }, "admin");
 
+  out.forgotPassword = await req("POST", "/auth/forgot-password", { email: user.email });
+
+  const resetPassword = "ResetPass789!";
+  const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true } });
+  const { rawToken, tokenHash } = generateTokenPair();
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: dbUser.id,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    },
+  });
+  out.resetPassword = await req("POST", "/auth/reset-password", {
+    token: rawToken,
+    newPassword: resetPassword,
+  });
+  out.loginAfterReset = await req(
+    "POST",
+    "/auth/login",
+    { email: user.email, password: resetPassword },
+    "user"
+  );
+  user.password = resetPassword;
+
   out.createCategory = await req(
     "POST",
     "/categories",
@@ -135,7 +192,7 @@ async function main() {
     "/events",
     {
       title: `Smoke Event ${now}`,
-      description: "Smoke event description for validation",
+      description: "Annual Eid al-Adha community gathering and luncheon for families.",
       categoryId: out.createCategory.json?.data?.category?.id,
       addressLine: "Street 1",
       formattedAddress: "Street 1, City",
@@ -158,8 +215,15 @@ async function main() {
       health: out.health.status,
       registerUser: out.userRegister.status,
       registerAdmin: out.adminRegister.status,
+      loginBeforeVerify: out.loginBeforeVerify?.status,
+      verifyEmailRequest: out.verifyEmailRequest?.status,
+      verifyEmailConfirm: out.verifyEmailConfirm?.status,
+      loginAfterVerify: out.loginAfterVerify?.status,
       loginUser: out.userLogin.status,
       loginAdmin: out.adminLogin.status,
+      forgotPassword: out.forgotPassword.status,
+      resetPassword: out.resetPassword.status,
+      loginAfterReset: out.loginAfterReset.status,
       createCategory: out.createCategory.status,
       createEvent: out.createEvent.status,
       pending: out.pending.status,
@@ -175,8 +239,15 @@ async function main() {
     errors: {
       userRegister: out.userRegister.json?.error,
       adminRegister: out.adminRegister.json?.error,
+      loginBeforeVerify: out.loginBeforeVerify?.json?.error,
+      verifyEmailRequest: out.verifyEmailRequest?.json?.error,
+      verifyEmailConfirm: out.verifyEmailConfirm?.json?.error,
+      loginAfterVerify: out.loginAfterVerify?.json?.error,
       userLogin: out.userLogin.json?.error,
       adminLogin: out.adminLogin.json?.error,
+      forgotPassword: out.forgotPassword.json?.error,
+      resetPassword: out.resetPassword.json?.error,
+      loginAfterReset: out.loginAfterReset.json?.error,
       createCategory: out.createCategory.json?.error,
       createEvent: out.createEvent.json?.error,
       pending: out.pending.json?.error,

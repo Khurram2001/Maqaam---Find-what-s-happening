@@ -111,6 +111,7 @@ model AuthSession {
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([refreshTokenHash])
 }
 
 model AuditLog {
