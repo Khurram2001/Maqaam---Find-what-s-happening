@@ -42,7 +42,11 @@ cp -n "$APP_DIR/deploy/env/frontend-admin.env.example" "$ENV_DIR/frontend-admin.
 chmod 600 "$ENV_DIR"/*.env 2>/dev/null || true
 
 echo "==> Nginx site"
-cp "$APP_DIR/deploy/nginx/maqaam.conf.example" /etc/nginx/sites-available/maqaam
+if [[ -f "$APP_DIR/deploy/nginx/maqaam.conf" ]]; then
+  cp "$APP_DIR/deploy/nginx/maqaam.conf" /etc/nginx/sites-available/maqaam
+else
+  cp "$APP_DIR/deploy/nginx/maqaam.conf.example" /etc/nginx/sites-available/maqaam
+fi
 ln -sf /etc/nginx/sites-available/maqaam /etc/nginx/sites-enabled/maqaam
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
