@@ -887,7 +887,60 @@ Deploy in this sequence so each layer has its dependencies ready:
 | API | `api.maqaam.app` → backend |
 | User site | `maqaam.app` or `www.maqaam.app` → frontend-user |
 | Admin | `admin.maqaam.app` → frontend-admin |
-| Database | Managed Postgres (connection pooler URL for serverless) |
+| Database | Amazon RDS PostgreSQL (or other managed Postgres) |
+
+### Minimal AWS EC2 deployment (recommended)
+
+One EC2 instance runs all three apps via **PM2**; **nginx** terminates HTTPS and routes by subdomain. Postgres on **RDS** (separate small instance). Push to GitHub `main` can auto-deploy via GitHub Actions.
+
+**AWS resources (minimal):**
+- 1× EC2 (e.g. `t3.small`, Ubuntu 22.04) — API + user + admin
+- 1× RDS PostgreSQL (e.g. `db.t4g.micro`)
+- Route 53 (or your DNS) — A records for `api`, `www`, `admin` → EC2 public IP
+- ACM not required if using **certbot** on nginx (included in setup script)
+
+**Repo deploy files:**
+
+| Path | Purpose |
+|------|---------|
+| `deploy/setup-ec2.sh` | One-time server bootstrap (Node 20, PM2, nginx) |
+| `deploy/deploy.sh` | Pull, install, migrate, build, restart PM2 |
+| `deploy/ecosystem.config.cjs` | PM2: backend `:5000`, user `:3000`, admin `:3001` |
+| `deploy/nginx/maqaam.conf.example` | Reverse proxy for three subdomains |
+| `deploy/env/*.env.example` | Production env templates (copy to `/etc/maqaam/` on server) |
+| `.github/workflows/deploy.yml` | SSH deploy on push to `main` |
+
+**First-time server setup:**
+
+```bash
+# On EC2 (as root), after cloning the repo to /var/www/maqaam:
+export MAQAAM_REPO_URL=https://github.com/YOUR_ORG/Maqaam.git
+sudo bash /var/www/maqaam/deploy/setup-ec2.sh
+
+# Edit production secrets (never commit these):
+sudo nano /etc/maqaam/backend.env
+sudo nano /etc/maqaam/frontend-user.env
+sudo nano /etc/maqaam/frontend-admin.env
+
+# Set domains in nginx, then HTTPS:
+sudo nano /etc/nginx/sites-available/maqaam
+sudo certbot --nginx -d example.com -d www.example.com -d api.example.com -d admin.example.com
+
+# First deploy:
+cd /var/www/maqaam && bash deploy/deploy.sh
+```
+
+**GitHub auto-deploy secrets** (repo → Settings → Secrets):
+
+| Secret | Value |
+|--------|-------|
+| `EC2_HOST` | EC2 public IP or hostname |
+| `EC2_USER` | `ubuntu` (or your SSH user) |
+| `EC2_SSH_KEY` | Private key for deploy user |
+
+After setup: commit and push to `main` → workflow runs `deploy/deploy.sh` on the server.
+
+**Manual redeploy:** `ssh` to EC2, `cd /var/www/maqaam && bash deploy/deploy.sh`
 
 ### Documentation maintenance
 
@@ -987,6 +1040,11 @@ On `401`, frontend auto-calls `POST /auth/refresh` once and retries. Login block
 > Timestamped record of all meaningful development work. Update this section when shipping features or fixes.
 
 <!-- DEVLOG_START -->
+### 2026-06-10 (UTC+5) - EC2 deploy-ready monorepo
+- Fixed git: `frontend-user` and `frontend-admin` are normal monorepo folders (removed broken submodule links).
+- Added `deploy/` (PM2, nginx, `setup-ec2.sh`, `deploy.sh`, env examples) and `.github/workflows/deploy.yml` for push-to-main SSH deploy.
+- Backend: `postinstall` runs `prisma generate`; smoke test supports `SMOKE_BASE_URL`.
+
 ### 2026-06-09 (UTC+5) - Rejected event resubmit + re-review flow
 - Owner edit clears moderation fields and returns event to `PENDING`; admin approve/reject limited to pending gatherings.
 - User: rejected events show edit/resubmit CTAs and resubmitted confirmation; admin queue defaults to pending filter.

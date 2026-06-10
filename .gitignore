@@ -1,3 +1,9 @@
 .agents/
 .claude/
 skills-lock.json
+
+# Local env (production secrets live on EC2 in /etc/maqaam/)
+.env
+.env.*
+!.env.example
+!deploy/env/*.example

@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const prisma = require("../src/lib/prisma");
 const { generateTokenPair } = require("../src/utils/token");
 
-const base = "http://localhost:5000/api";
+const base = (process.env.SMOKE_BASE_URL || "http://localhost:5000/api").replace(/\/$/, "");
 const now = Date.now();
 const user = {
   name: "User Smoke",
