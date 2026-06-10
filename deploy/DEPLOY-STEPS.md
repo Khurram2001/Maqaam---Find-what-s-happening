@@ -1,6 +1,7 @@
-# Maqaam deployment — maqaam.me (step-by-step)
+# Maqaam deployment — maqaam.me
 
-Domain layout:
+**Database:** Supabase PostgreSQL  
+**Apps:** AWS EC2 (backend + user + admin on one server)
 
 | URL | App |
 |-----|-----|
@@ -12,23 +13,41 @@ GitHub: `https://github.com/Khurram2001/Maqaam---Find-what-s-happening.git`
 
 ---
 
-## Step 1 — AWS RDS (PostgreSQL) — **YOU**
+## Step 1 — Supabase database — **YOU**
 
-1. AWS Console → **RDS** → **Create database**
-2. **Engine:** PostgreSQL 16 (or 15)
-3. **Templates:** Free tier (or Dev/Test if free tier unavailable)
-4. **DB instance:** `db.t4g.micro` or `db.t3.micro`
-5. **DB identifier:** `maqaam-db`
-6. **Master username:** `maqaam_admin`
-7. **Master password:** save this securely
-8. **Database name:** `maqaam`
-9. **Public access:** No
-10. **VPC security group:** create new → name `maqaam-rds-sg`
-11. Create database (wait ~5–10 min)
+1. Go to [supabase.com](https://supabase.com) → **New project**
+2. **Name:** `maqaam` (or any name)
+3. **Database password:** choose a strong password and **save it**
+4. **Region:** pick closest to your EC2 region (e.g. `eu-west-1`)
+5. Wait until the project is **Active**
 
-**Save these values:**
-- RDS endpoint (e.g. `maqaam-db.xxxxx.eu-west-1.rds.amazonaws.com`)
-- Username, password, database name `maqaam`
+### Get connection string
+
+1. Supabase Dashboard → **Project Settings** → **Database**
+2. Under **Connection string**, choose **URI**
+3. Select **Session pooler** (port `5432`) — works with Prisma migrations from EC2
+4. Copy the URI. It looks like:
+
+   ```
+   postgresql://postgres.PROJECT_REF:YOUR_PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
+   ```
+
+5. Replace `[YOUR-PASSWORD]` with your real DB password
+6. **URL-encode** special characters in the password (`@` → `%40`, `#` → `%23`, etc.)
+
+### Optional: run migrations from your PC now
+
+```bash
+cd backend
+# paste your Supabase URI as DATABASE_URL in .env temporarily
+npm run prisma:migrate:deploy
+```
+
+If this succeeds, tables exist before EC2 deploy. Otherwise `deploy/deploy.sh` runs migrations on the server.
+
+**Save for Step 5:** the full `DATABASE_URL` string (keep it secret).
+
+> **Note:** Maqaam uses Prisma directly — you do **not** need Supabase Auth, Storage, or RLS for this app. Only Postgres.
 
 ---
 
@@ -50,8 +69,7 @@ GitHub: `https://github.com/Khurram2001/Maqaam---Find-what-s-happening.git`
 7. Launch instance
 8. Copy **Public IPv4 address**
 
-**Then:** EC2 security group → allow RDS access:
-- Edit `maqaam-rds-sg` → Inbound → PostgreSQL 5432 → Source = `maqaam-ec2-sg`
+No RDS or VPC database rules needed — Supabase is reached over the internet.
 
 ---
 
@@ -72,7 +90,7 @@ DNS can take 5–30 minutes to propagate.
 
 ---
 
-## Step 4 — Server bootstrap — **SSH + scripts**
+## Step 4 — Server bootstrap — **SSH**
 
 ```bash
 ssh -i your-key.pem ubuntu@YOUR_EC2_IP
@@ -93,23 +111,26 @@ sudo nano /etc/maqaam/frontend-user.env
 sudo nano /etc/maqaam/frontend-admin.env
 ```
 
-Copy from `deploy/env/*.env.example` and fill real secrets.
+Use `deploy/env/*.env.example` as templates.
 
-Generate JWT secrets (on your PC or EC2):
+**`backend.env` — key fields:**
+
+```env
+DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
+CORS_ORIGIN_USER=https://maqaam.me
+CORS_ORIGIN_ADMIN=https://admin.maqaam.me
+FRONTEND_USER_BASE_URL=https://maqaam.me
+COOKIE_SECURE=true
+TRUST_PROXY=true
+```
+
+Generate JWT secrets:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
 Run twice for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`.
-
-**DATABASE_URL format:**
-
-```
-postgresql://maqaam_admin:PASSWORD@ENDPOINT:5432/maqaam
-```
-
-URL-encode special characters in the password (`@` → `%40`, etc.).
 
 ---
 
@@ -139,6 +160,8 @@ Verify:
 ```bash
 curl https://api.maqaam.me/api/health
 ```
+
+Expected: `"database": "ok"`
 
 ---
 

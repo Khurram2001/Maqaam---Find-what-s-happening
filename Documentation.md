@@ -887,16 +887,16 @@ Deploy in this sequence so each layer has its dependencies ready:
 | API | `api.maqaam.app` → backend |
 | User site | `maqaam.app` or `www.maqaam.app` → frontend-user |
 | Admin | `admin.maqaam.app` → frontend-admin |
-| Database | Amazon RDS PostgreSQL (or other managed Postgres) |
+| Database | Supabase PostgreSQL (managed; not on EC2) |
 
 ### Minimal AWS EC2 deployment (recommended)
 
-One EC2 instance runs all three apps via **PM2**; **nginx** terminates HTTPS and routes by subdomain. Postgres on **RDS** (separate small instance). Push to GitHub `main` can auto-deploy via GitHub Actions.
+One EC2 instance runs all three apps via **PM2**; **nginx** terminates HTTPS and routes by subdomain. **Postgres on Supabase**; EC2 hosts backend + both frontends only. Push to GitHub `main` can auto-deploy via GitHub Actions.
 
-**AWS resources (minimal):**
-- 1× EC2 (e.g. `t3.small`, Ubuntu 22.04) — API + user + admin
-- 1× RDS PostgreSQL (e.g. `db.t4g.micro`)
-- Route 53 (or your DNS) — A records for `api`, `www`, `admin` → EC2 public IP
+**Resources (minimal):**
+- **Supabase** — PostgreSQL database (`DATABASE_URL` session pooler URI)
+- 1× **EC2** (e.g. `t3.small`, Ubuntu 22.04) — API + user + admin
+- **Namecheap DNS** — A records for `@`, `www`, `api`, `admin` → EC2 public IP
 - ACM not required if using **certbot** on nginx (included in setup script)
 
 **Repo deploy files:**
@@ -1040,6 +1040,9 @@ On `401`, frontend auto-calls `POST /auth/refresh` once and retries. Login block
 > Timestamped record of all meaningful development work. Update this section when shipping features or fixes.
 
 <!-- DEVLOG_START -->
+### 2026-06-10 (UTC+5) - Supabase + EC2 deploy layout (maqaam.me)
+- Database on Supabase; backend + frontends on single EC2. Updated `deploy/DEPLOY-STEPS.md` and env templates.
+
 ### 2026-06-10 (UTC+5) - EC2 deploy-ready monorepo
 - Fixed git: `frontend-user` and `frontend-admin` are normal monorepo folders (removed broken submodule links).
 - Added `deploy/` (PM2, nginx, `setup-ec2.sh`, `deploy.sh`, env examples) and `.github/workflows/deploy.yml` for push-to-main SSH deploy.
