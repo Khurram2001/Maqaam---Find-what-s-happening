@@ -7,7 +7,28 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_DIR="${MAQAAM_ENV_DIR:-/etc/maqaam}"
 BRANCH="${DEPLOY_BRANCH:-main}"
 
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=768}"
+
 cd "$ROOT"
+
+free_disk_space() {
+  echo "==> Freeing disk space"
+  rm -f "$ROOT/.git/index.lock"
+  rm -rf "$ROOT/frontend-user/.next" "$ROOT/frontend-admin/.next"
+  rm -rf "$ROOT/backend/node_modules" "$ROOT/frontend-user/node_modules" "$ROOT/frontend-admin/node_modules"
+  npm cache clean --force 2>/dev/null || true
+
+  local disk_use
+  disk_use="$(df / | awk 'NR==2 {print $5}' | tr -d '%')"
+  if [[ "$disk_use" -ge 90 ]]; then
+    echo "Disk ${disk_use}% full — extra cleanup"
+    pm2 flush 2>/dev/null || true
+    sudo journalctl --vacuum-size=30M 2>/dev/null || true
+    sudo apt-get clean 2>/dev/null || true
+  fi
+
+  df -h / || true
+}
 
 echo "==> Pulling $BRANCH"
 git fetch origin "$BRANCH"
@@ -27,6 +48,8 @@ fi
 cp "$ENV_DIR/backend.env" "$ROOT/backend/.env"
 cp "$ENV_DIR/frontend-user.env" "$ROOT/frontend-user/.env.production.local"
 cp "$ENV_DIR/frontend-admin.env" "$ROOT/frontend-admin/.env.production.local"
+
+free_disk_space
 
 echo "==> Backend: install + migrate"
 cd "$ROOT/backend"

@@ -1038,6 +1038,10 @@ On `401`, frontend auto-calls `POST /auth/refresh` once and retries. Login block
 > Timestamped record of all meaningful development work. Update this section when shipping features or fixes.
 
 <!-- DEVLOG_START -->
+### 2026-06-14 (UTC+5) - Deploy disk cleanup + workflow hardening
+- `deploy/deploy.sh`: auto free disk before install/build; set `NODE_OPTIONS` for small EC2.
+- `.github/workflows/deploy.yml`: pre-deploy cleanup, 30m timeout, memory limit for builds.
+
 ### 2026-06-14 (UTC+5) - Production deploy complete + docs updated
 - GitHub Actions auto-deploy verified on `main` (SSH → `deploy/deploy.sh`).
 - Updated `deploy/DEPLOY-STEPS.md`: env permissions, GitHub Actions SSH rule, push-to-production workflow, disk maintenance.

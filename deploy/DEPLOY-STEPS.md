@@ -291,7 +291,9 @@ bash deploy/deploy.sh
 
 ## Server maintenance — disk space
 
-Small EC2 volumes (~7 GB) fill up quickly. Check before deploys:
+Small EC2 volumes (~7 GB) fill up quickly. **`deploy/deploy.sh` and GitHub Actions auto-clean** old `node_modules`, `.next` builds, and npm cache before each deploy.
+
+Check disk anytime:
 
 ```bash
 df -h /
@@ -303,12 +305,15 @@ See what uses space:
 sudo du -sh /var/www/maqaam/* 2>/dev/null | sort -hr
 ```
 
-If disk is nearly full, free space before deploying:
+If a deploy still fails with `ENOSPC` / `no space left on device`, run this manually on EC2 then push again:
 
 ```bash
 sudo rm -f /var/www/maqaam/.git/index.lock
 sudo rm -rf /var/www/maqaam/frontend-user/.next
 sudo rm -rf /var/www/maqaam/frontend-admin/.next
+sudo rm -rf /var/www/maqaam/backend/node_modules
+sudo rm -rf /var/www/maqaam/frontend-user/node_modules
+sudo rm -rf /var/www/maqaam/frontend-admin/node_modules
 npm cache clean --force
 sudo apt clean
 sudo journalctl --vacuum-size=30M
