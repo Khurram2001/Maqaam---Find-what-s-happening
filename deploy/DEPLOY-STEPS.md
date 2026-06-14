@@ -11,6 +11,8 @@
 
 GitHub: `https://github.com/Khurram2001/Maqaam---Find-what-s-happening.git`
 
+**Status:** Production is live. Push to `main` auto-deploys via GitHub Actions.
+
 ---
 
 ## Step 1 — Supabase database — **YOU**
@@ -55,16 +57,17 @@ If this succeeds, tables exist before EC2 deploy. Otherwise `deploy/deploy.sh` r
 
 1. AWS Console → **EC2** → **Launch instance**
 2. **Name:** `maqaam-server`
-3. **AMI:** Ubuntu Server 22.04 LTS
+3. **AMI:** Ubuntu Server 22.04 or 24.04 LTS
 4. **Instance type:** `t3.small` (or `t3.micro` for testing)
 5. **Key pair:** Create new → download `.pem` file (keep safe)
 6. **Security group:** create `maqaam-ec2-sg` with inbound rules:
 
-   | Type | Port | Source |
-   |------|------|--------|
-   | SSH | 22 | Your IP |
-   | HTTP | 80 | 0.0.0.0/0 |
-   | HTTPS | 443 | 0.0.0.0/0 |
+   | Type | Port | Source | Notes |
+   |------|------|--------|-------|
+   | SSH | 22 | Your IP | For your manual SSH |
+   | SSH | 22 | `0.0.0.0/0` | Required for GitHub Actions auto-deploy |
+   | HTTP | 80 | `0.0.0.0/0` | |
+   | HTTPS | 443 | `0.0.0.0/0` | |
 
 7. Launch instance
 8. Copy **Public IPv4 address**
@@ -101,7 +104,7 @@ sudo bash /var/www/maqaam/deploy/setup-ec2.sh
 
 ---
 
-## Step 5 — Production env files — **YOU**
+## Step 5 — Production env files — **SSH**
 
 On EC2:
 
@@ -132,6 +135,13 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 Run twice for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`.
 
+**Set permissions** so the `ubuntu` user can read env files during deploy:
+
+```bash
+sudo chown root:ubuntu /etc/maqaam/*.env
+sudo chmod 640 /etc/maqaam/*.env
+```
+
 ---
 
 ## Step 6 — HTTPS (certbot) — **SSH**
@@ -151,17 +161,25 @@ sudo certbot --nginx \
 ```bash
 cd /var/www/maqaam
 sudo chown -R ubuntu:ubuntu /var/www/maqaam
+export NODE_OPTIONS="--max-old-space-size=768"
 bash deploy/deploy.sh
 pm2 save
+```
+
+Optional — persist memory limit for future deploys:
+
+```bash
+echo 'export NODE_OPTIONS="--max-old-space-size=768"' >> ~/.bashrc
 ```
 
 Verify:
 
 ```bash
 curl https://api.maqaam.me/api/health
+pm2 status
 ```
 
-Expected: `"database": "ok"`
+Expected: `"database": "ok"` and all three apps **online**.
 
 ---
 
@@ -173,17 +191,49 @@ Expected: `"database": "ok"`
 | **Cloudinary** | Production API keys |
 | **MapTiler** | API key; restrict to `maqaam.me` |
 
+After editing env files on EC2, redeploy:
+
+```bash
+cd /var/www/maqaam && bash deploy/deploy.sh
+```
+
+Or push any commit to `main` to trigger GitHub Actions.
+
 ---
 
 ## Step 9 — GitHub auto-deploy — **YOU**
 
-Repo → Settings → Secrets → Actions:
+### 9a. Add secrets (GitHub website)
+
+Repo → **Settings** → **Secrets and variables** → **Actions**:
 
 | Secret | Value |
 |--------|-------|
-| `EC2_HOST` | EC2 public IP |
+| `EC2_HOST` | EC2 public IP (e.g. `54.82.8.220`) |
 | `EC2_USER` | `ubuntu` |
-| `EC2_SSH_KEY` | Contents of your `.pem` file |
+| `EC2_SSH_KEY` | Full contents of your `.pem` file |
+
+Copy the key on **Windows PowerShell** (not on EC2):
+
+```powershell
+Get-Content E:\path\to\your-key.pem | Set-Clipboard
+```
+
+Paste into the `EC2_SSH_KEY` secret on GitHub.
+
+### 9b. Trigger first auto-deploy (Windows PC)
+
+```powershell
+cd E:\path\to\your\repo
+git commit --allow-empty -m "Trigger deploy"
+git push origin main
+```
+
+### 9c. Verify
+
+GitHub → **Actions** → **Deploy to EC2** → latest run should show a green checkmark.
+
+Workflow file: `.github/workflows/deploy.yml`
 
 ---
 
@@ -194,3 +244,75 @@ Repo → Settings → Secrets → Actions:
 3. Create event with image
 4. Open `https://admin.maqaam.me` → approve event
 5. Event appears on browse/homepage
+
+---
+
+## Ongoing — push changes to production
+
+Every code change follows the same flow:
+
+**On your PC (PowerShell):**
+
+```powershell
+cd E:\path\to\your\repo
+git add .
+git commit -m "Describe your change"
+git push origin main
+```
+
+**What happens automatically:**
+
+1. GitHub Actions SSHs into EC2
+2. Runs `deploy/deploy.sh` which:
+   - `git pull` latest code
+   - Copies env files from `/etc/maqaam/`
+   - `npm ci` + DB migrations (backend)
+   - Builds user + admin frontends
+   - Restarts all apps via PM2
+
+**Confirm deploy:** GitHub → **Actions** → **Deploy to EC2** (usually 5–15 minutes).
+
+**Manual redeploy (optional):**
+
+```bash
+ssh -i your-key.pem ubuntu@YOUR_EC2_IP
+cd /var/www/maqaam
+export NODE_OPTIONS="--max-old-space-size=768"
+bash deploy/deploy.sh
+```
+
+| Topic | Detail |
+|-------|--------|
+| **Branch** | Only pushes to **`main`** trigger auto-deploy |
+| **Env secrets** | Edit `/etc/maqaam/*.env` on EC2 — never commit to git |
+| **Frontend env** | Changes to `NEXT_PUBLIC_*` require a redeploy (rebuild) |
+
+---
+
+## Server maintenance — disk space
+
+Small EC2 volumes (~7 GB) fill up quickly. Check before deploys:
+
+```bash
+df -h /
+```
+
+See what uses space:
+
+```bash
+sudo du -sh /var/www/maqaam/* 2>/dev/null | sort -hr
+```
+
+If disk is nearly full, free space before deploying:
+
+```bash
+sudo rm -f /var/www/maqaam/.git/index.lock
+sudo rm -rf /var/www/maqaam/frontend-user/.next
+sudo rm -rf /var/www/maqaam/frontend-admin/.next
+npm cache clean --force
+sudo apt clean
+sudo journalctl --vacuum-size=30M
+df -h /
+```
+
+Then redeploy. `deploy/deploy.sh` reinstalls dependencies and rebuilds frontends.

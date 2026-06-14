@@ -39,7 +39,8 @@ echo "==> Env templates"
 cp -n "$APP_DIR/deploy/env/backend.env.example" "$ENV_DIR/backend.env" 2>/dev/null || true
 cp -n "$APP_DIR/deploy/env/frontend-user.env.example" "$ENV_DIR/frontend-user.env" 2>/dev/null || true
 cp -n "$APP_DIR/deploy/env/frontend-admin.env.example" "$ENV_DIR/frontend-admin.env" 2>/dev/null || true
-chmod 600 "$ENV_DIR"/*.env 2>/dev/null || true
+chown root:"$APP_USER" "$ENV_DIR"/*.env 2>/dev/null || true
+chmod 640 "$ENV_DIR"/*.env 2>/dev/null || true
 
 echo "==> Nginx site"
 if [[ -f "$APP_DIR/deploy/nginx/maqaam.conf" ]]; then
@@ -65,6 +66,6 @@ Next steps:
 5. As $APP_USER: cd $APP_DIR && bash deploy/deploy.sh
 6. pm2 save
 
-For auto-deploy on git push, add GitHub Actions secrets (see deploy/github-actions-deploy.yml).
+For auto-deploy on git push, add GitHub Actions secrets (see deploy/DEPLOY-STEPS.md Step 9 and .github/workflows/deploy.yml).
 
 EOF

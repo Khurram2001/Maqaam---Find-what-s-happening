@@ -20,6 +20,10 @@ if [[ ! -f "$ENV_DIR/backend.env" ]]; then
 fi
 
 echo "==> Syncing env files"
+if [[ ! -r "$ENV_DIR/backend.env" ]]; then
+  echo "Cannot read $ENV_DIR/backend.env — run: sudo chown root:\$USER $ENV_DIR/*.env && sudo chmod 640 $ENV_DIR/*.env"
+  exit 1
+fi
 cp "$ENV_DIR/backend.env" "$ROOT/backend/.env"
 cp "$ENV_DIR/frontend-user.env" "$ROOT/frontend-user/.env.production.local"
 cp "$ENV_DIR/frontend-admin.env" "$ROOT/frontend-admin/.env.production.local"

@@ -822,14 +822,14 @@ Deploy in this sequence so each layer has its dependencies ready:
 | `DATABASE_URL` | Required | — | — |
 | `JWT_*_SECRET` | ≥32 chars, no placeholders | — | — |
 | `COOKIE_SECURE` | `true` | — | — |
-| `COOKIE_DOMAIN` | Parent domain if subdomains share cookies (e.g. `.maqaam.app`) | — | — |
+| `COOKIE_DOMAIN` | Parent domain if subdomains share cookies (e.g. `.maqaam.me`) | — | — |
 | `TRUST_PROXY` | `true` behind reverse proxy | — | — |
 | `CORS_ORIGIN_USER` | User site HTTPS origin | — | — |
 | `CORS_ORIGIN_ADMIN` | Admin site HTTPS origin | — | — |
 | `FRONTEND_USER_BASE_URL` | HTTPS user site (email links) | — | — |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Required | — | — |
 | `CLOUDINARY_*` | Required | — | — |
-| `NEXT_PUBLIC_API_BASE_URL` | — | `https://api.example.com/api` | Same API URL |
+| `NEXT_PUBLIC_API_BASE_URL` | — | `https://api.maqaam.me/api` | Same API URL |
 
 **User app only:** `NEXT_PUBLIC_MAPTILER_API_KEY` (and optional LocationIQ/Geoapify fallbacks).
 
@@ -873,74 +873,72 @@ Deploy in this sequence so each layer has its dependencies ready:
 | Scenario | Action |
 |----------|--------|
 | **Rollback app** | Redeploy previous build artifact; DB migrations are forward-only — do not roll back schema without a planned migration |
-| **Env change (backend)** | Update platform env → restart backend process |
-| **Env change (`NEXT_PUBLIC_*`)** | Rebuild and redeploy affected frontend |
+| **Env change (backend)** | Edit `/etc/maqaam/backend.env` on EC2 → `bash deploy/deploy.sh` or push to `main` |
+| **Env change (`NEXT_PUBLIC_*`)** | Edit `/etc/maqaam/frontend-*.env` on EC2 → redeploy (rebuild required) |
+| **Push code to production** | `git push origin main` on your PC → GitHub Actions runs `deploy/deploy.sh` on EC2 |
+| **Manual redeploy** | SSH to EC2 → `cd /var/www/maqaam && bash deploy/deploy.sh` |
+| **Disk full on deploy** | `df -h /` → remove `.next` folders, `npm cache clean --force`, `sudo apt clean` → redeploy |
 | **Login fails after deploy** | Check CORS origins, `COOKIE_SECURE`, cookie domain, email verified |
 | **401 on all requests** | Confirm API URL in frontend build; check refresh cookie path/domain |
 | **Emails not sending** | Verify Resend domain, `EMAIL_FROM`, API key; check backend logs |
 | **Images fail upload** | Verify Cloudinary credentials and 2MB limit |
 
-### Suggested hosting layout
+### Production hosting layout (maqaam.me)
 
-| Service | Example |
-|---------|---------|
-| API | `api.maqaam.app` → backend |
-| User site | `maqaam.app` or `www.maqaam.app` → frontend-user |
-| Admin | `admin.maqaam.app` → frontend-admin |
+| Service | URL |
+|---------|-----|
+| API | `https://api.maqaam.me` → backend (`:5000`) |
+| User site | `https://maqaam.me` → frontend-user (`:3000`) |
+| Admin | `https://admin.maqaam.me` → frontend-admin (`:3001`) |
 | Database | Supabase PostgreSQL (managed; not on EC2) |
 
 ### Minimal AWS EC2 deployment (recommended)
 
-One EC2 instance runs all three apps via **PM2**; **nginx** terminates HTTPS and routes by subdomain. **Postgres on Supabase**; EC2 hosts backend + both frontends only. Push to GitHub `main` can auto-deploy via GitHub Actions.
+One EC2 instance runs all three apps via **PM2**; **nginx** terminates HTTPS and routes by subdomain. **Postgres on Supabase**; EC2 hosts backend + both frontends only. Push to GitHub `main` auto-deploys via GitHub Actions.
 
 **Resources (minimal):**
 - **Supabase** — PostgreSQL database (`DATABASE_URL` session pooler URI)
-- 1× **EC2** (e.g. `t3.small`, Ubuntu 22.04) — API + user + admin
+- 1× **EC2** (e.g. `t3.small`, Ubuntu 22.04/24.04) — API + user + admin
 - **Namecheap DNS** — A records for `@`, `www`, `api`, `admin` → EC2 public IP
+- **Security group** — SSH (22) open for your IP **and** GitHub Actions (`0.0.0.0/0` or GitHub IP ranges); HTTP/HTTPS (80/443) public
 - ACM not required if using **certbot** on nginx (included in setup script)
 
 **Repo deploy files:**
 
 | Path | Purpose |
 |------|---------|
+| `deploy/DEPLOY-STEPS.md` | Full setup + ongoing deploy guide |
 | `deploy/setup-ec2.sh` | One-time server bootstrap (Node 20, PM2, nginx) |
 | `deploy/deploy.sh` | Pull, install, migrate, build, restart PM2 |
 | `deploy/ecosystem.config.cjs` | PM2: backend `:5000`, user `:3000`, admin `:3001` |
-| `deploy/nginx/maqaam.conf.example` | Reverse proxy for three subdomains |
+| `deploy/nginx/maqaam.conf` | Production reverse proxy for maqaam.me subdomains |
 | `deploy/env/*.env.example` | Production env templates (copy to `/etc/maqaam/` on server) |
 | `.github/workflows/deploy.yml` | SSH deploy on push to `main` |
 
-**First-time server setup:**
+**First-time server setup:** see `deploy/DEPLOY-STEPS.md` Steps 1–10.
 
-```bash
-# On EC2 (as root), after cloning the repo to /var/www/maqaam:
-export MAQAAM_REPO_URL=https://github.com/YOUR_ORG/Maqaam.git
-sudo bash /var/www/maqaam/deploy/setup-ec2.sh
+**Ongoing deploy (after initial setup):**
 
-# Edit production secrets (never commit these):
-sudo nano /etc/maqaam/backend.env
-sudo nano /etc/maqaam/frontend-user.env
-sudo nano /etc/maqaam/frontend-admin.env
-
-# Set domains in nginx, then HTTPS:
-sudo nano /etc/nginx/sites-available/maqaam
-sudo certbot --nginx -d example.com -d www.example.com -d api.example.com -d admin.example.com
-
-# First deploy:
-cd /var/www/maqaam && bash deploy/deploy.sh
+```powershell
+# On your PC — every feature or fix:
+git add .
+git commit -m "your message"
+git push origin main
 ```
 
-**GitHub auto-deploy secrets** (repo → Settings → Secrets):
+GitHub Actions SSHs to EC2 and runs `deploy/deploy.sh`. Confirm in repo → **Actions** → **Deploy to EC2**.
+
+**GitHub auto-deploy secrets** (repo → Settings → Secrets → Actions):
 
 | Secret | Value |
 |--------|-------|
-| `EC2_HOST` | EC2 public IP or hostname |
-| `EC2_USER` | `ubuntu` (or your SSH user) |
-| `EC2_SSH_KEY` | Private key for deploy user |
+| `EC2_HOST` | EC2 public IP |
+| `EC2_USER` | `ubuntu` |
+| `EC2_SSH_KEY` | Full `.pem` private key contents |
 
-After setup: commit and push to `main` → workflow runs `deploy/deploy.sh` on the server.
+**Manual redeploy:** SSH to EC2 → `cd /var/www/maqaam && export NODE_OPTIONS="--max-old-space-size=768" && bash deploy/deploy.sh`
 
-**Manual redeploy:** `ssh` to EC2, `cd /var/www/maqaam && bash deploy/deploy.sh`
+**Disk space:** check with `df -h /` on EC2. If nearly full, remove `.next` build folders and run `npm cache clean --force` before redeploying. See `deploy/DEPLOY-STEPS.md` — Server maintenance.
 
 ### Documentation maintenance
 
@@ -1040,6 +1038,11 @@ On `401`, frontend auto-calls `POST /auth/refresh` once and retries. Login block
 > Timestamped record of all meaningful development work. Update this section when shipping features or fixes.
 
 <!-- DEVLOG_START -->
+### 2026-06-14 (UTC+5) - Production deploy complete + docs updated
+- GitHub Actions auto-deploy verified on `main` (SSH → `deploy/deploy.sh`).
+- Updated `deploy/DEPLOY-STEPS.md`: env permissions, GitHub Actions SSH rule, push-to-production workflow, disk maintenance.
+- Updated Section 16 runbook and production URLs (`maqaam.me`); fixed `setup-ec2.sh` doc reference.
+
 ### 2026-06-10 (UTC+5) - Supabase + EC2 deploy layout (maqaam.me)
 - Database on Supabase; backend + frontends on single EC2. Updated `deploy/DEPLOY-STEPS.md` and env templates.
 
