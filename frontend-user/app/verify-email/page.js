@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { VerifyEmailPageInner } from "./verify-email-inner";
 
 export const metadata = {
-  title: "Verify email · Maqaam",
+  title: "Verify Email",
   description: "Confirm your email address to activate your Maqaam account.",
 };
 

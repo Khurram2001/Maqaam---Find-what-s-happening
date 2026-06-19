@@ -1,7 +1,7 @@
 import { LazyAuditLogsScreen } from "@/components/admin/admin-lazy-screens";
 
 export const metadata = {
-  title: "Audit logs · Maqaam Admin",
+  title: "Audit Logs",
   description: "View admin audit logs for actions and targets.",
 };
 

@@ -18,9 +18,17 @@ const amiri = Amiri({
 });
 
 export const metadata = {
-  title: "Maqaam — Discover & create local events",
+  title: {
+    template: "%s - Maqaam",
+    default: "Maqaam — Discover & Create Local Islamic Gatherings",
+  },
   description:
     "Find what is happening near you. Minimal listings for local gatherings—browse, host, and connect.",
+  icons: {
+    icon: "/favicon-32x32.png",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }) {

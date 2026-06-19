@@ -17,7 +17,7 @@ const passwordSchema = z
   .string()
   .min(1, "Password is required.")
   .min(8, "Password must be at least 8 characters.")
-  .max(128, "Password must be at most 128 characters.")
+  .max(16, "Password must be at most 16 characters.")
   .regex(/[a-z]/, "Password must include at least one lowercase letter.")
   .regex(/[A-Z]/, "Password must include at least one uppercase letter.")
   .regex(/\d/, "Password must include at least one number.");
@@ -34,7 +34,10 @@ export const registerFormSchema = z
     countryCode: z.string().min(1, "Country code is required."),
     phoneLocal: z.string().trim(),
     password: passwordSchema,
-    confirmPassword: z.string().min(1, "Please confirm your password."),
+    confirmPassword: z
+      .string()
+      .min(1, "Please confirm your password.")
+      .max(16, "Password must be at most 16 characters."),
   })
   .superRefine((data, ctx) => {
     const codeError = validateCountryCode(data.countryCode);

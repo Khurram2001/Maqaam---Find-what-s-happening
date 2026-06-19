@@ -12,8 +12,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Maqaam Admin",
+  title: {
+    template: "%s - Maqaam Admin",
+    default: "Categories - Maqaam Admin",
+  },
   description: "Moderation, user management, and admin operations for Maqaam.",
+  icons: {
+    icon: "/favicon-32x32.png",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport = {

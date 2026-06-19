@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ResetPasswordPageInner } from "./reset-password-inner";
 
 export const metadata = {
-  title: "Reset password · Maqaam",
+  title: "Reset Password",
   description: "Set a new password for your Maqaam account.",
 };
 

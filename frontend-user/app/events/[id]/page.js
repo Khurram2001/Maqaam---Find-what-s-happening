@@ -4,7 +4,7 @@ import { getApiBaseUrl } from "@/lib/config";
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
-  let title = "Event · Maqaam";
+  let title = "Event";
   try {
     const res = await fetch(`${getApiBaseUrl()}/events/${id}`, {
       headers: { Accept: "application/json" },
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }) {
     if (res.ok) {
       const j = await res.json();
       if (j.success && j.data?.event?.title) {
-        title = `${j.data.event.title} · Maqaam`;
+        title = j.data.event.title;
       }
     }
   } catch {

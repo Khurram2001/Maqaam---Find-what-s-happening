@@ -24,11 +24,14 @@ describe("adminLoginSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects empty password", () => {
-    const result = adminLoginSchema.safeParse({ email: "admin@example.com", password: "" });
+  it("rejects password longer than 16 characters", () => {
+    const result = adminLoginSchema.safeParse({
+      email: "admin@example.com",
+      password: "a".repeat(17),
+    });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(mapLoginFieldErrors(result.error.flatten()).password).toBeTruthy();
+      expect(mapLoginFieldErrors(result.error.flatten()).password).toMatch(/16 characters/i);
     }
   });
 });

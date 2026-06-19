@@ -44,7 +44,10 @@ const primaryAuthButtonClass =
 
 const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .max(16, "Password must be at most 16 characters."),
 });
 
 const forgotSchema = z.object({
@@ -635,18 +638,20 @@ export function SignInDialog({
                           <PasswordInput
                             id="reg-password"
                             autoComplete="new-password"
-                            placeholder="8+ chars, upper, lower, number"
+                            placeholder="8-16 chars, upper, lower, number"
                             value={regPassword}
                             required
-                            minLength={8}
-                            maxLength={128}
                             onChange={(e) => setRegPassword(e.target.value)}
                             className={cn(authInputClass, regErrors.password ? "border-destructive" : "")}
                             aria-invalid={!!regErrors.password}
                           />
                           {regErrors.password ? (
                             <p className="text-xs text-destructive">{regErrors.password}</p>
-                          ) : null}
+                          ) : (
+                            <p className="text-[0.65rem] leading-snug text-[#0B4D53]/55">
+                              8-16 characters with upper, lower, and a number.
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="reg-confirm-password" className={authLabelClass}>
@@ -655,11 +660,9 @@ export function SignInDialog({
                           <PasswordInput
                             id="reg-confirm-password"
                             autoComplete="new-password"
-                            placeholder="Re-enter your password"
+                            placeholder="Re-enter your password (8-16 chars)"
                             value={regConfirmPassword}
                             required
-                            minLength={8}
-                            maxLength={128}
                             onChange={(e) => setRegConfirmPassword(e.target.value)}
                             className={cn(
                               authInputClass,

@@ -26,8 +26,14 @@ const secondaryButtonClass =
 
 const passwordSchema = z
   .object({
-    newPassword: z.string().min(8, "At least 8 characters").max(128),
-    confirm: z.string().min(1, "Confirm your password"),
+    newPassword: z
+      .string()
+      .min(8, "At least 8 characters")
+      .max(16, "Password must be at most 16 characters."),
+    confirm: z
+      .string()
+      .min(1, "Confirm your password")
+      .max(16, "Password must be at most 16 characters."),
   })
   .superRefine((data, ctx) => {
     if (data.newPassword !== data.confirm) {
@@ -165,7 +171,7 @@ export function ResetPasswordClient({ token }) {
                 {fieldErrors.newPassword ? (
                   <p className="text-xs text-destructive">{fieldErrors.newPassword}</p>
                 ) : (
-                  <p className="mt-1 text-xs tracking-wide text-[#0B4D53]/60">At least 8 characters.</p>
+                  <p className="mt-1 text-xs tracking-wide text-[#0B4D53]/60">8-16 characters.</p>
                 )}
               </div>
 

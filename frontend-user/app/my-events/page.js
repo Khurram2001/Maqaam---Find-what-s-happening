@@ -2,7 +2,7 @@ import { SiteHeader } from "@/components/home/site-header";
 import { MyEventsDashboard } from "@/components/dashboard/my-events-dashboard";
 
 export const metadata = {
-  title: "My events · Maqaam",
+  title: "My Events",
   description: "Review your submitted events and moderation status on Maqaam.",
 };
 

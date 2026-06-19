@@ -1,7 +1,7 @@
 import { AdminSignInScreen } from "@/components/admin/admin-sign-in-screen";
 
 export const metadata = {
-  title: "Sign in · Maqaam Admin",
+  title: "Sign In",
   description: "Admin sign in for moderation and operations.",
 };
 

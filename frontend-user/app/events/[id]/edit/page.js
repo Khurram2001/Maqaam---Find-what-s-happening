@@ -2,7 +2,7 @@ import { EventEditScreen } from "@/components/events/event-edit-screen";
 import { SiteHeader } from "@/components/home/site-header";
 
 export const metadata = {
-  title: "Edit event · Maqaam",
+  title: "Edit Event",
   description: "Update your event details before moderation.",
 };
 

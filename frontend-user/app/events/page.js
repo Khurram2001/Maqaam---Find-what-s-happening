@@ -5,7 +5,7 @@ import { BROWSE_EVENTS_PAGE_SIZE, getBrowseEventsStartDateFrom } from "@/lib/bro
 import { getCachedPublicEvents } from "@/lib/public-api";
 
 export const metadata = {
-  title: "Browse gatherings · Maqaam",
+  title: "Browse Gatherings",
   description: "Explore verified local lectures, halaqas, and community circles with search and filters.",
 };
 

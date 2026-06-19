@@ -6,7 +6,10 @@ export const adminLoginSchema = z.object({
     .trim()
     .min(1, "Email is required.")
     .email("Please enter a valid email address."),
-  password: z.string().min(1, "Password is required."),
+  password: z
+    .string()
+    .min(1, "Password is required.")
+    .max(16, "Password must be at most 16 characters."),
 });
 
 export function mapLoginFieldErrors(flat) {

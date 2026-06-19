@@ -1,7 +1,7 @@
 import { LazyUsersScreen } from "@/components/admin/admin-lazy-screens";
 
 export const metadata = {
-  title: "Users · Maqaam Admin",
+  title: "Users",
   description: "Manage users and permissions in Maqaam.",
 };
 

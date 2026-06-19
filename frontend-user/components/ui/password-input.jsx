@@ -21,6 +21,7 @@ export function PasswordInput({ className, id, disabled, ...props }) {
         disabled={disabled}
         className={cn("pr-10", className)}
         {...props}
+        maxLength={16}
       />
       <button
         type="button"

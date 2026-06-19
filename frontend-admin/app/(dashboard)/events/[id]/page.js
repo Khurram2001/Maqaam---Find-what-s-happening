@@ -1,7 +1,7 @@
 import { LazyEventReviewScreen } from "@/components/admin/admin-lazy-screens";
 
 export const metadata = {
-  title: "Review event · Maqaam Admin",
+  title: "Review Event",
   description: "Admin moderation review for a single event.",
 };
 

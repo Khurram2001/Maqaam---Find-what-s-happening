@@ -1,7 +1,7 @@
 import { LazyCategoriesScreen } from "@/components/admin/admin-lazy-screens";
 
 export const metadata = {
-  title: "Categories · Maqaam Admin",
+  title: "Categories",
   description: "Manage gathering categories for Maqaam.",
 };
 

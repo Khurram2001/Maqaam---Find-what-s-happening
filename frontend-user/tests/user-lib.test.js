@@ -114,6 +114,19 @@ describe("user lib helpers", () => {
     expect(buildE164Phone("966", "501234567")).toBe("+966501234567");
   });
 
+  it("validateRegisterForm rejects passwords longer than 16 characters", () => {
+    const result = validateRegisterForm({
+      name: "Ahmad Ali",
+      email: "user@example.com",
+      countryCode: "+966",
+      phoneLocal: "501234567",
+      password: "SecurePass1234567",
+      confirmPassword: "SecurePass1234567",
+    });
+    expect(result.success).toBe(false);
+    expect(result.errors.password).toMatch(/16 characters/i);
+  });
+
   it("validateRegisterForm requires all fields and matching passwords", () => {
     const fail = validateRegisterForm({
       name: "",
