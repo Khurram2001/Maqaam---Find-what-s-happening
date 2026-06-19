@@ -17,23 +17,28 @@ free_disk_space() {
   rm -rf "$ROOT/frontend-user/.next" "$ROOT/frontend-admin/.next"
   rm -rf "$ROOT/backend/node_modules" "$ROOT/frontend-user/node_modules" "$ROOT/frontend-admin/node_modules"
   npm cache clean --force 2>/dev/null || true
-
-  local disk_use
-  disk_use="$(df / | awk 'NR==2 {print $5}' | tr -d '%')"
-  if [[ "$disk_use" -ge 90 ]]; then
-    echo "Disk ${disk_use}% full — extra cleanup"
-    pm2 flush 2>/dev/null || true
-    sudo journalctl --vacuum-size=30M 2>/dev/null || true
-    sudo apt-get clean 2>/dev/null || true
-  fi
-
+  rm -rf "${HOME}/.npm/_cacache" 2>/dev/null || true
+  pm2 flush 2>/dev/null || true
+  rm -rf "${HOME}/.pm2/logs/"* 2>/dev/null || true
+  sudo journalctl --vacuum-size=30M 2>/dev/null || true
+  sudo apt-get clean 2>/dev/null || true
   df -h / || true
 }
 
+free_disk_space
+
 echo "==> Pulling $BRANCH"
+SCRIPT_BEFORE="$(sha256sum "$ROOT/deploy/deploy.sh" | awk '{print $1}')"
 git fetch origin "$BRANCH"
 git checkout "$BRANCH"
 git pull origin "$BRANCH"
+SCRIPT_AFTER="$(sha256sum "$ROOT/deploy/deploy.sh" | awk '{print $1}')"
+
+if [[ "$SCRIPT_BEFORE" != "$SCRIPT_AFTER" ]] && [[ "${MAQAAM_DEPLOY_REEXEC:-}" != "1" ]]; then
+  echo "==> deploy.sh updated — re-running with new script"
+  export MAQAAM_DEPLOY_REEXEC=1
+  exec bash "$ROOT/deploy/deploy.sh"
+fi
 
 if [[ ! -f "$ENV_DIR/backend.env" ]]; then
   echo "Missing $ENV_DIR/backend.env — copy from deploy/env/backend.env.example"
@@ -49,8 +54,6 @@ cp "$ENV_DIR/backend.env" "$ROOT/backend/.env"
 cp "$ENV_DIR/frontend-user.env" "$ROOT/frontend-user/.env.production.local"
 cp "$ENV_DIR/frontend-admin.env" "$ROOT/frontend-admin/.env.production.local"
 
-free_disk_space
-
 echo "==> Backend: install + migrate"
 cd "$ROOT/backend"
 npm ci
@@ -60,11 +63,15 @@ echo "==> User app: install + build"
 cd "$ROOT/frontend-user"
 npm ci
 npm run build
+npm prune --omit=dev
+npm cache clean --force 2>/dev/null || true
 
 echo "==> Admin app: install + build"
 cd "$ROOT/frontend-admin"
 npm ci
 npm run build
+npm prune --omit=dev
+npm cache clean --force 2>/dev/null || true
 
 echo "==> Restarting PM2"
 cd "$ROOT"

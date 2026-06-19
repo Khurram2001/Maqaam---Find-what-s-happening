@@ -21,6 +21,11 @@ jobs:
             rm -rf frontend-user/.next frontend-admin/.next
             rm -rf backend/node_modules frontend-user/node_modules frontend-admin/node_modules
             npm cache clean --force || true
+            rm -rf ~/.npm/_cacache || true
+            pm2 flush || true
+            rm -rf ~/.pm2/logs/* || true
+            sudo journalctl --vacuum-size=30M || true
+            sudo apt-get clean || true
             df -h /
             export NODE_OPTIONS="--max-old-space-size=768"
             bash deploy/deploy.sh
