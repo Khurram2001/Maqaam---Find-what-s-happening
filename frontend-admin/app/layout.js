@@ -14,11 +14,15 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: {
     template: "%s - Maqaam Admin",
-    default: "Categories - Maqaam Admin",
+    default: "Maqaam Admin",
   },
   description: "Moderation, user management, and admin operations for Maqaam.",
   icons: {
-    icon: "/favicon-32x32.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },

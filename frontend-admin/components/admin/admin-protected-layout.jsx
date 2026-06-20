@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Loader2, Menu } from "lucide-react";
@@ -8,7 +8,6 @@ import { Loader2, Menu } from "lucide-react";
 import { AdminMainLoading } from "@/components/admin/admin-main-loading";
 import { AdminSessionProvider } from "@/components/admin/admin-session-context";
 import { AdminSidebar, AdminSidebarDrawer } from "@/components/admin/admin-sidebar";
-import { AdminSignInScreen } from "@/components/admin/admin-sign-in-screen";
 import { AdminToastProvider } from "@/components/admin/admin-toast-provider";
 import { Button } from "@/components/ui/button";
 import { apiJson } from "@/lib/api-client";
@@ -77,11 +76,18 @@ function Shell({ userName, sessionLoading, children, onLogout, loggingOut }) {
 
 export function AdminProtectedLayout({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [phase, setPhase] = useState("loading");
   const [userName, setUserName] = useState("");
   const [userId, setUserId] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const sessionChecked = useRef(false);
+
+  useEffect(() => {
+    if (phase !== "guest") return;
+    const next = pathname && pathname.startsWith("/") ? pathname : "/";
+    router.replace(`/sign-in?next=${encodeURIComponent(next)}`);
+  }, [phase, pathname, router]);
 
   useEffect(() => {
     if (sessionChecked.current) return undefined;
@@ -112,13 +118,6 @@ export function AdminProtectedLayout({ children }) {
     };
   }, []);
 
-  function handleAuthenticated(user) {
-    sessionChecked.current = true;
-    setUserName(user.name || user.email || "Admin");
-    setUserId(user.id);
-    setPhase("ready");
-  }
-
   async function logout() {
     setLoggingOut(true);
     await apiJson("/auth/logout", { method: "POST" });
@@ -132,7 +131,7 @@ export function AdminProtectedLayout({ children }) {
   if (phase === "guest") {
     return (
       <AdminToastProvider>
-        <AdminSignInScreen nextPath={pathname || "/"} onSuccess={handleAuthenticated} />
+        <AdminMainLoading label="Redirecting to sign in…" />
       </AdminToastProvider>
     );
   }
