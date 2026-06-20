@@ -24,6 +24,7 @@ const {
   emailVerifyTokenTtlMinutes,
   passwordResetTokenTtlMinutes,
   nodeEnv,
+  corsOrigins,
 } = require("../config/env");
 const {
   validationError,
@@ -76,6 +77,26 @@ function sanitizeUser(user) {
     emailVerifiedAt: user.emailVerifiedAt,
     createdAt: user.createdAt,
   };
+}
+
+/** @returns {"admin" | "user" | null} */
+function resolveLoginAudience(req) {
+  const hint = `${req.get("origin") || ""} ${req.get("referer") || ""}`.toLowerCase();
+  if (!hint.trim()) return null;
+
+  const adminOrigin = (corsOrigins[1] || "").toLowerCase();
+  const userOrigin = (corsOrigins[0] || "").toLowerCase();
+
+  if (adminOrigin && hint.includes(adminOrigin.replace(/^https?:\/\//, ""))) {
+    return "admin";
+  }
+  if (userOrigin && hint.includes(userOrigin.replace(/^https?:\/\//, ""))) {
+    return "user";
+  }
+  if (hint.includes("admin.")) {
+    return "admin";
+  }
+  return null;
 }
 
 function minutesFromNow(minutes) {
@@ -251,6 +272,14 @@ authRouter.post("/login", authRateLimiter, async (req, res, next) => {
     const matched = await bcrypt.compare(parsed.data.password, user.passwordHash);
     if (!matched) {
       throw unauthenticatedError("Invalid email or password");
+    }
+
+    const audience = resolveLoginAudience(req);
+    if (audience === "admin" && user.role !== "ADMIN") {
+      throw forbiddenError("This account is not an admin account.");
+    }
+    if (audience === "user" && user.role === "ADMIN") {
+      throw forbiddenError("Admin accounts must sign in at the admin portal.");
     }
 
     await issueSession(res, req, user.id);

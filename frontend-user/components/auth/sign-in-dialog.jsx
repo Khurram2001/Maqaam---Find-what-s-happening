@@ -208,6 +208,13 @@ export function SignInDialog({
     setLoginPending(false);
 
     if (ok && json.success) {
+      const loggedInUser = json.data?.user;
+      if (loggedInUser?.role === "ADMIN") {
+        await apiJson("/auth/logout", { method: "POST" });
+        setLoginBanner("Admin accounts must sign in at the admin portal.");
+        return;
+      }
+
       handleOpenChange(false);
       await onSuccess?.();
       return;

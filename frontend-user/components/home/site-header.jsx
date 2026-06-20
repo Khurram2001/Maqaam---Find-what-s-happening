@@ -37,6 +37,11 @@ export function SiteHeader({ variant = "default" }) {
     try {
       const { ok, json } = await apiJson("/auth/me");
       if (ok && json.success && json.data?.user) {
+        if (json.data.user.role === "ADMIN") {
+          await apiJson("/auth/logout", { method: "POST" });
+          setUser(null);
+          return;
+        }
         setUser(json.data.user);
       } else {
         setUser(null);
@@ -104,6 +109,11 @@ export function SiteHeader({ variant = "default" }) {
     try {
       const { ok, json } = await apiJson("/auth/me");
       if (ok && json.success && json.data?.user) {
+        if (json.data.user.role === "ADMIN") {
+          await apiJson("/auth/logout", { method: "POST" });
+          setUser(null);
+          return;
+        }
         setUser(json.data.user);
         router.push(CREATE_EVENT_HREF);
         return;

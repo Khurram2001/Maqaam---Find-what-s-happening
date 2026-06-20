@@ -33,6 +33,14 @@ export function AdminSignInScreen({ nextPath = "/", onSuccess }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    const previousTitle = document.title;
+    document.title = "Sign In - Maqaam Admin";
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const id = window.setTimeout(() => setToast(null), 4500);
     return () => window.clearTimeout(id);
